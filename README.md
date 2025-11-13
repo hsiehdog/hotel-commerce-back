@@ -78,6 +78,8 @@ type AiSession = {
 };
 ```
 
+`POST /ai/generate` automatically fetches up to the last five `AiSession` entries for the authenticated user and sends them as structured `{ role, content }` history `messages` (alternating user/assistant turns). The LLM call also sets a custom system prompt and appends the current request body as the latest user message, keeping responses grounded in recent conversation context.
+
 ### Better Auth Endpoints
 
 - The entire Better Auth router is exposed at `/auth/*` (the Express app proxies requests directly to `betterAuth.handler` as recommended in discussion #5578).
