@@ -18,6 +18,7 @@ type RealtimeClient = {
   sendAudio: (base64Audio: string) => void;
   sendFunctionCallOutput: (callId: string, output: unknown) => void;
   requestResponse: () => void;
+  sendAssistantMessage: (text: string) => void;
   close: () => void;
 };
 
@@ -92,6 +93,7 @@ export const createOpenAiRealtimeClient = ({
   });
 
   const pendingAudio: string[] = [];
+  const pendingAssistantMessages: string[] = [];
   let isReady = false;
 
   const flushPending = () => {
@@ -99,6 +101,13 @@ export const createOpenAiRealtimeClient = ({
       const audio = pendingAudio.shift();
       if (audio) {
         ws.send(JSON.stringify({ type: "input_audio_buffer.append", audio }));
+      }
+    }
+
+    while (pendingAssistantMessages.length > 0 && ws.readyState === WebSocket.OPEN) {
+      const message = pendingAssistantMessages.shift();
+      if (message) {
+        sendOutOfBandResponse(message);
       }
     }
   };
@@ -234,13 +243,43 @@ export const createOpenAiRealtimeClient = ({
     ws.send(JSON.stringify({ type: "response.create" }));
   };
 
+  const sendAssistantMessage = (text: string) => {
+    if (!text) {
+      return;
+    }
+
+    if (!isReady || ws.readyState !== WebSocket.OPEN) {
+      pendingAssistantMessages.push(text);
+      return;
+    }
+
+    sendOutOfBandResponse(text);
+  };
+
+  const sendOutOfBandResponse = (text: string) => {
+    if (ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    ws.send(
+      JSON.stringify({
+        type: "response.create",
+        response: {
+          conversation: "none",
+          instructions: `Say exactly: ${text}`,
+          output_modalities: ["audio"],
+        },
+      }),
+    );
+  };
+
   const close = () => {
     if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
       ws.close();
     }
   };
 
-  return { sendAudio, sendFunctionCallOutput, requestResponse, close };
+  return { sendAudio, sendFunctionCallOutput, requestResponse, sendAssistantMessage, close };
 };
 
 const safeJsonParse = (value: string): unknown => {

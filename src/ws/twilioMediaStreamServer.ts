@@ -47,6 +47,7 @@ export const attachTwilioMediaStreamServer = (server: Server): WebSocketServer =
   wss.on("connection", (socket) => {
     logger.info("Twilio WebSocket connected");
     const state: ConnectionState = {};
+    let greeted = false;
     const realtime = createOpenAiRealtimeClient({
       instructions: twilioOffersPrompt,
       tools: [
@@ -129,6 +130,10 @@ export const attachTwilioMediaStreamServer = (server: Server): WebSocketServer =
 
       if (action.type === "start") {
         state.streamId = action.streamId ?? state.streamId;
+        if (!greeted) {
+          greeted = true;
+          realtime.sendAssistantMessage("Hi! I can help with booking a room. What dates are you looking for?");
+        }
         return;
       }
 
