@@ -14,7 +14,12 @@ const envSchema = z.object({
     .optional(),
   TRUSTED_ORIGINS: z.string().optional(),
   OPENAI_API_KEY: z.string().min(1, "OPENAI_API_KEY is required"),
-  AI_MODEL: z.string().default("gpt-4o-mini")
+  AI_MODEL: z.string().default("gpt-4o-mini"),
+  TWILIO_VOICE_STREAM_URL: z
+    .string()
+    .url({ message: "TWILIO_VOICE_STREAM_URL must be a valid URL" })
+    .optional(),
+  TWILIO_VOICE_GREETING: z.string().optional(),
 });
 
 const env = envSchema.parse(process.env);
