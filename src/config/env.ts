@@ -21,6 +21,7 @@ const envSchema = z.object({
   AI_MODEL: z.string().default("gpt-5-mini"),
   OPENAI_REALTIME_MODEL: z.string().optional(),
   OPENAI_REALTIME_VOICE: z.string().optional(),
+  OPENAI_REALTIME_TRANSCRIBE_MODEL: z.string().optional(),
   TWILIO_VOICE_STREAM_URL: z
     .string()
     .url({ message: "TWILIO_VOICE_STREAM_URL must be a valid URL" })

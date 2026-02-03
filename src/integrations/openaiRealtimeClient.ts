@@ -6,10 +6,18 @@ type RealtimeClientOptions = {
   instructions: string;
   onAudioDelta: (base64Audio: string) => void;
   onTranscript?: (text: string) => void;
+  onFunctionCall?: (payload: { name: string; callId: string; arguments: unknown }) => void;
+  tools?: Array<{
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  }>;
 };
 
 type RealtimeClient = {
   sendAudio: (base64Audio: string) => void;
+  sendFunctionCallOutput: (callId: string, output: unknown) => void;
+  requestResponse: () => void;
   close: () => void;
 };
 
@@ -22,16 +30,38 @@ const buildRealtimeUrl = (model: string): string => {
   return url.toString();
 };
 
-const buildSessionUpdate = (instructions: string, voice: string) => ({
+const buildSessionUpdate = (
+  instructions: string,
+  voice: string,
+  tools: RealtimeClientOptions["tools"],
+  transcriptionModel?: string,
+) => ({
   type: "session.update",
   session: {
     type: "realtime",
     instructions,
+    output_modalities: ["audio"],
+    tools: tools?.map((tool) => ({
+      type: "function",
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.parameters,
+    })),
+    tool_choice: tools && tools.length > 0 ? "auto" : undefined,
     audio: {
       input: {
         format: {
           type: "audio/pcmu",
         },
+        turn_detection: {
+          type: "server_vad",
+        },
+        transcription: transcriptionModel
+          ? {
+              model: transcriptionModel,
+              language: "en",
+            }
+          : undefined,
       },
       output: {
         format: {
@@ -47,9 +77,12 @@ export const createOpenAiRealtimeClient = ({
   instructions,
   onAudioDelta,
   onTranscript,
+  onFunctionCall,
+  tools,
 }: RealtimeClientOptions): RealtimeClient => {
   const model = env.OPENAI_REALTIME_MODEL ?? DEFAULT_MODEL;
   const voice = env.OPENAI_REALTIME_VOICE ?? DEFAULT_VOICE;
+  const transcriptionModel = env.OPENAI_REALTIME_TRANSCRIBE_MODEL;
   const url = buildRealtimeUrl(model);
 
   const ws = new WebSocket(url, {
@@ -71,7 +104,7 @@ export const createOpenAiRealtimeClient = ({
   };
 
   ws.on("open", () => {
-    ws.send(JSON.stringify(buildSessionUpdate(instructions, voice)));
+    ws.send(JSON.stringify(buildSessionUpdate(instructions, voice, tools, transcriptionModel)));
     isReady = true;
     flushPending();
   });
@@ -126,6 +159,30 @@ export const createOpenAiRealtimeClient = ({
           onTranscript?.(transcript);
         }
       }
+
+      if (event.type === "conversation.item.input_audio_transcription.completed") {
+        const transcript = typeof event.transcript === "string" ? event.transcript.trim() : "";
+        if (transcript.length > 0) {
+          onTranscript?.(transcript);
+        }
+      }
+
+      if (event.type === "conversation.item.created") {
+        const item = event.item as { type?: string; name?: string; call_id?: string; arguments?: string };
+        if (item?.type === "function_call" && item.name && item.call_id) {
+          const parsedArgs = item.arguments ? safeJsonParse(item.arguments) : null;
+          onFunctionCall?.({ name: item.name, callId: item.call_id, arguments: parsedArgs });
+        }
+      }
+
+      if (event.type === "response.function_call_arguments.done") {
+        const callId = typeof event.call_id === "string" ? event.call_id : null;
+        const name = typeof event.name === "string" ? event.name : null;
+        const args = typeof event.arguments === "string" ? safeJsonParse(event.arguments) : null;
+        if (callId && name) {
+          onFunctionCall?.({ name, callId, arguments: args });
+        }
+      }
     } catch (error) {
       logger.warn("Failed to parse OpenAI Realtime message", error);
     }
@@ -152,11 +209,45 @@ export const createOpenAiRealtimeClient = ({
     ws.send(JSON.stringify({ type: "input_audio_buffer.append", audio: base64Audio }));
   };
 
+  const sendFunctionCallOutput = (callId: string, output: unknown) => {
+    if (ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    ws.send(
+      JSON.stringify({
+        type: "conversation.item.create",
+        item: {
+          type: "function_call_output",
+          call_id: callId,
+          output: JSON.stringify(output ?? {}),
+        },
+      }),
+    );
+  };
+
+  const requestResponse = () => {
+    if (ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    ws.send(JSON.stringify({ type: "response.create" }));
+  };
+
   const close = () => {
     if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
       ws.close();
     }
   };
 
-  return { sendAudio, close };
+  return { sendAudio, sendFunctionCallOutput, requestResponse, close };
+};
+
+const safeJsonParse = (value: string): unknown => {
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    logger.warn("Failed to parse function call arguments", error);
+    return null;
+  }
 };

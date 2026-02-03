@@ -1,4 +1,5 @@
 import { logger } from "../utils/logger";
+import { createEmptyOfferIntent, type OfferIntent, type PendingAction } from "../ai/offerIntent";
 
 export type CollectedIntent = {
   dates: {
@@ -15,6 +16,8 @@ export type CallSession = {
   language?: string | null;
   collectedIntent: CollectedIntent;
   offers: unknown[];
+  intent: OfferIntent;
+  pendingAction: PendingAction | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -63,6 +66,8 @@ const upsertSessionFromStart = (payload: TwilioStartPayload): CallSession => {
     language: existing?.language ?? null,
     collectedIntent: existing?.collectedIntent ?? buildEmptyIntent(),
     offers: existing?.offers ?? [],
+    intent: existing?.intent ?? createEmptyOfferIntent(),
+    pendingAction: existing?.pendingAction ?? null,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };
