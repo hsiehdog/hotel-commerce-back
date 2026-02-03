@@ -96,30 +96,27 @@ export const handleTwilioStreamMessage = (
   message: TwilioStreamMessage,
   state: { callId?: string; streamId?: string },
 ): void => {
-  switch (message.event) {
-    case "start": {
-      const session = upsertSessionFromStart(message.start);
-      state.callId = session.callId;
-      state.streamId = session.streamId ?? undefined;
-      logger.info("Twilio stream started", { callId: session.callId, streamId: session.streamId });
-      return;
+  if (isStartMessage(message)) {
+    const session = upsertSessionFromStart(message.start);
+    state.callId = session.callId;
+    state.streamId = session.streamId ?? undefined;
+    logger.info("Twilio stream started", { callId: session.callId, streamId: session.streamId });
+    return;
+  }
+
+  if (isMediaMessage(message)) {
+    if (state.callId) {
+      touchSession(state.callId);
     }
-    case "media": {
-      if (state.callId) {
-        touchSession(state.callId);
-      }
-      return;
+    return;
+  }
+
+  if (isStopMessage(message)) {
+    const callId = message.stop.callSid ?? state.callId;
+    if (callId) {
+      endSession(callId);
+      logger.info("Twilio stream stopped", { callId, streamId: message.stop.streamSid ?? state.streamId });
     }
-    case "stop": {
-      const callId = message.stop.callSid ?? state.callId;
-      if (callId) {
-        endSession(callId);
-        logger.info("Twilio stream stopped", { callId, streamId: message.stop.streamSid ?? state.streamId });
-      }
-      return;
-    }
-    default:
-      return;
   }
 };
 
@@ -128,3 +125,12 @@ export const getSession = (callId: string): CallSession | undefined => sessions.
 export const clearSession = (callId: string): void => {
   sessions.delete(callId);
 };
+
+const isStartMessage = (message: TwilioStreamMessage): message is { event: "start"; start: TwilioStartPayload } =>
+  message.event === "start" && typeof message.start === "object" && message.start !== null;
+
+const isMediaMessage = (message: TwilioStreamMessage): message is { event: "media"; media: TwilioMediaPayload } =>
+  message.event === "media" && typeof message.media === "object" && message.media !== null;
+
+const isStopMessage = (message: TwilioStreamMessage): message is { event: "stop"; stop: TwilioStopPayload } =>
+  message.event === "stop" && typeof message.stop === "object" && message.stop !== null;
