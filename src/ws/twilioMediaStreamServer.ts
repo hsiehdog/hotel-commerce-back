@@ -2,6 +2,8 @@ import type { Server } from "http";
 import { WebSocketServer } from "ws";
 import type { RawData } from "ws";
 import { logger } from "../utils/logger";
+import { createOpenAiRealtimeClient } from "../integrations/openaiRealtimeClient";
+import twilioWordCountPrompt from "../prompts/system/twilioWordCountPrompt";
 import {
   clearSession,
   handleTwilioStreamMessage,
@@ -42,6 +44,25 @@ export const attachTwilioMediaStreamServer = (server: Server): WebSocketServer =
   wss.on("connection", (socket) => {
     logger.info("Twilio WebSocket connected");
     const state: ConnectionState = {};
+    const realtime = createOpenAiRealtimeClient({
+      instructions: twilioWordCountPrompt,
+      onAudioDelta: (base64Audio) => {
+        if (!state.streamId) {
+          return;
+        }
+
+        socket.send(
+          JSON.stringify({
+            event: "media",
+            streamSid: state.streamId,
+            media: { payload: base64Audio },
+          }),
+        );
+      },
+      onTranscript: (text) => {
+        logger.info("OpenAI Realtime transcript", { callId: state.callId, text });
+      },
+    });
 
     socket.on("message", (data) => {
       const raw = getRawMessage(data);
@@ -55,7 +76,24 @@ export const attachTwilioMediaStreamServer = (server: Server): WebSocketServer =
         return;
       }
 
-      handleTwilioStreamMessage(message, state);
+      const action = handleTwilioStreamMessage(message, state);
+      if (!action) {
+        return;
+      }
+
+      if (action.type === "start") {
+        state.streamId = action.streamId ?? state.streamId;
+        return;
+      }
+
+      if (action.type === "media") {
+        realtime.sendAudio(action.payload);
+        return;
+      }
+
+      if (action.type === "stop") {
+        realtime.close();
+      }
     });
 
     socket.on("close", () => {
@@ -63,6 +101,7 @@ export const attachTwilioMediaStreamServer = (server: Server): WebSocketServer =
       if (state.callId) {
         clearSession(state.callId);
       }
+      realtime.close();
     });
   });
 

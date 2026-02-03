@@ -34,11 +34,16 @@ type TwilioMediaPayload = {
   payload: string;
 };
 
-type TwilioStreamMessage =
+export type TwilioStreamMessage =
   | { event: "start"; start: TwilioStartPayload }
   | { event: "media"; media: TwilioMediaPayload }
   | { event: "stop"; stop: TwilioStopPayload }
   | { event: string; [key: string]: unknown };
+
+export type TwilioStreamAction =
+  | { type: "start"; callId: string; streamId?: string | null; callerNumber?: string | null }
+  | { type: "media"; payload: string }
+  | { type: "stop"; callId?: string | null; streamId?: string | null };
 
 const sessions = new Map<string, CallSession>();
 
@@ -95,20 +100,25 @@ export const parseTwilioStreamMessage = (rawData: string): TwilioStreamMessage |
 export const handleTwilioStreamMessage = (
   message: TwilioStreamMessage,
   state: { callId?: string; streamId?: string },
-): void => {
+): TwilioStreamAction | null => {
   if (isStartMessage(message)) {
     const session = upsertSessionFromStart(message.start);
     state.callId = session.callId;
     state.streamId = session.streamId ?? undefined;
     logger.info("Twilio stream started", { callId: session.callId, streamId: session.streamId });
-    return;
+    return {
+      type: "start",
+      callId: session.callId,
+      streamId: session.streamId ?? null,
+      callerNumber: session.callerNumber ?? null,
+    };
   }
 
   if (isMediaMessage(message)) {
     if (state.callId) {
       touchSession(state.callId);
     }
-    return;
+    return { type: "media", payload: message.media.payload };
   }
 
   if (isStopMessage(message)) {
@@ -117,7 +127,10 @@ export const handleTwilioStreamMessage = (
       endSession(callId);
       logger.info("Twilio stream stopped", { callId, streamId: message.stop.streamSid ?? state.streamId });
     }
+    return { type: "stop", callId: callId ?? null, streamId: message.stop.streamSid ?? state.streamId ?? null };
   }
+
+  return null;
 };
 
 export const getSession = (callId: string): CallSession | undefined => sessions.get(callId);

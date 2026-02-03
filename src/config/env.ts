@@ -4,17 +4,23 @@ import { z } from "zod";
 config();
 
 const envSchema = z.object({
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  NODE_ENV: z
+    .enum(["development", "test", "production"])
+    .default("development"),
   PORT: z.coerce.number().default(4000),
   DATABASE_URL: z.string().url({ message: "DATABASE_URL must be a valid URL" }),
-  BETTER_AUTH_SECRET: z.string().min(32, "BETTER_AUTH_SECRET must be at least 32 characters"),
+  BETTER_AUTH_SECRET: z
+    .string()
+    .min(32, "BETTER_AUTH_SECRET must be at least 32 characters"),
   APP_BASE_URL: z
     .string()
     .url({ message: "APP_BASE_URL must be a valid URL" })
     .optional(),
   TRUSTED_ORIGINS: z.string().optional(),
   OPENAI_API_KEY: z.string().min(1, "OPENAI_API_KEY is required"),
-  AI_MODEL: z.string().default("gpt-4o-mini"),
+  AI_MODEL: z.string().default("gpt-5-mini"),
+  OPENAI_REALTIME_MODEL: z.string().optional(),
+  OPENAI_REALTIME_VOICE: z.string().optional(),
   TWILIO_VOICE_STREAM_URL: z
     .string()
     .url({ message: "TWILIO_VOICE_STREAM_URL must be a valid URL" })
