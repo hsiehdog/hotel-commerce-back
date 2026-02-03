@@ -27,17 +27,21 @@ export const normalizeDate = (
   const relative = resolveRelativeDate(value, now, timezone);
   if (relative) {
     const label = field === "check_in" ? "check-in" : "check-out";
+    const spokenToday = formatDateForSpeech(relative.today, timezone);
+    const spokenAssumed = formatDateForSpeech(relative.assumed, timezone);
     return {
       status: "ambiguous",
-      prompt: `If today is ${relative.today} in PST, I'm assuming ${label} ${relative.phrase} is ${relative.assumed} - is that right?`,
+      prompt: `If today is ${spokenToday} in PST, I'm assuming ${label} ${relative.phrase} is ${spokenAssumed} - is that right?`,
     };
   }
 
   if (isMonthlessDate(value)) {
     const { optionA, optionB } = buildMonthOptions(now, timezone, value);
+    const spokenOptionA = formatDateForSpeech(optionA, timezone);
+    const spokenOptionB = formatDateForSpeech(optionB, timezone);
     return {
       status: "ambiguous",
-      prompt: `Which month is that - ${optionA} or ${optionB}?`,
+      prompt: `Which month is that - ${spokenOptionA} or ${spokenOptionB}?`,
     };
   }
 
@@ -142,27 +146,12 @@ const buildMonthOptions = (now: Date, timezone: string, value: string): { option
   const day = dayMatch ? dayMatch[0].padStart(2, "0") : "01";
   const { month, year } = getMonthYear(now, timezone);
   const nextMonth = month === 12 ? 1 : month + 1;
-  const optionA = `${monthName(month)} ${Number(day)}`;
-  const optionB = `${monthName(nextMonth)} ${Number(day)}`;
+  const nextYear = month === 12 ? year + 1 : year;
+  const optionA = `${year}-${pad2(month)}-${day}`;
+  const optionB = `${nextYear}-${pad2(nextMonth)}-${day}`;
 
   return { optionA, optionB };
 };
-
-const monthName = (month: number): string =>
-  [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ][month - 1] ?? "";
 
 const getTodayInTimezone = (now: Date, timezone: string): string => {
   const { year, month, day } = getDateParts(now, timezone);
@@ -198,4 +187,34 @@ const addDays = (isoDate: string, days: number): string => {
   const base = new Date(`${isoDate}T00:00:00Z`);
   base.setUTCDate(base.getUTCDate() + days);
   return base.toISOString().slice(0, 10);
+};
+
+export const formatDateForSpeech = (isoDate: string, timezone: string): string => {
+  const parts = isoDate.split("-");
+  if (parts.length !== 3) {
+    return isoDate;
+  }
+  const [yearStr, monthStr, dayStr] = parts;
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return isoDate;
+  }
+
+  // Use noon UTC to avoid timezone shifting the local date.
+  const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  if (Number.isNaN(date.getTime())) {
+    return isoDate;
+  }
+
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  return formatter.format(date);
 };

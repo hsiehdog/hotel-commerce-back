@@ -1,5 +1,5 @@
 import { OfferIntent } from "./offerIntent";
-import { normalizeCheckOut, normalizeDate } from "./dateResolution";
+import { formatDateForSpeech, normalizeCheckOut, normalizeDate } from "./dateResolution";
 
 export type GetOffersToolArgs = Partial<{
   check_in: string;
@@ -193,10 +193,16 @@ const mergeIntent = (current: OfferIntent, incoming: GetOffersToolArgs): OfferIn
 });
 
 export const buildSlotSpeech = (slots: OfferIntent): string => {
+  const spokenCheckIn = slots.check_in
+    ? formatDateForSpeech(slots.check_in, slots.property_timezone)
+    : "null";
+  const spokenCheckOut = slots.check_out
+    ? formatDateForSpeech(slots.check_out, slots.property_timezone)
+    : "null";
   const lines = [
     "Get offers tool will be called now with the following slots:",
-    `check_in: ${slots.check_in ?? "null"}`,
-    `check_out: ${slots.check_out ?? "null"}`,
+    `check_in: ${spokenCheckIn}`,
+    `check_out: ${spokenCheckOut}`,
     `nights: ${slots.nights ?? "null"}`,
     `adults: ${slots.adults ?? "null"}`,
     `rooms: ${slots.rooms ?? "null"}`,
