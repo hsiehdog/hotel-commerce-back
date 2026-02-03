@@ -141,3 +141,10 @@ When implementing a change, always output:
 4. If schema changed: migration steps + Prisma generate
 
 Prefer small PR-sized changes over massive rewrites.
+
+## Required checks
+
+After any code change, run:
+
+- `npx tsc --noEmit`
+  Fix all TS errors before finishing.
