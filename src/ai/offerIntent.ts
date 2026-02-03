@@ -14,14 +14,6 @@ export type OfferIntent = {
   property_timezone: string;
 };
 
-export type PendingAction =
-  | {
-      type: "clarification";
-      missingFields: string[];
-      prompt: string;
-    }
-  | null;
-
 export const createEmptyOfferIntent = (timezone = "America/Los_Angeles"): OfferIntent => ({
   check_in: null,
   check_out: null,

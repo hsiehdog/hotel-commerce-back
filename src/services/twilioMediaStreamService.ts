@@ -1,5 +1,5 @@
 import { logger } from "../utils/logger";
-import { createEmptyOfferIntent, type OfferIntent, type PendingAction } from "../ai/offerIntent";
+import { createEmptyOfferIntent, type OfferIntent } from "../ai/offerIntent";
 
 export type CollectedIntent = {
   dates: {
@@ -17,7 +17,6 @@ export type CallSession = {
   collectedIntent: CollectedIntent;
   offers: unknown[];
   intent: OfferIntent;
-  pendingAction: PendingAction | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -67,7 +66,6 @@ const upsertSessionFromStart = (payload: TwilioStartPayload): CallSession => {
     collectedIntent: existing?.collectedIntent ?? buildEmptyIntent(),
     offers: existing?.offers ?? [],
     intent: existing?.intent ?? createEmptyOfferIntent(),
-    pendingAction: existing?.pendingAction ?? null,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };
@@ -143,6 +141,8 @@ export const getSession = (callId: string): CallSession | undefined => sessions.
 export const clearSession = (callId: string): void => {
   sessions.delete(callId);
 };
+
+export const listSessions = (): CallSession[] => Array.from(sessions.values());
 
 const isStartMessage = (message: TwilioStreamMessage): message is { event: "start"; start: TwilioStartPayload } =>
   message.event === "start" && typeof message.start === "object" && message.start !== null;

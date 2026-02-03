@@ -118,7 +118,13 @@ export const createOpenAiRealtimeClient = ({
     flushPending();
   });
 
-  let transcriptBuffer = "";
+  const eventHandlers = buildEventHandlers({
+    onAudioDelta,
+    onTranscript,
+    onFunctionCall,
+    onSessionUpdated: () => logger.info("OpenAI Realtime session updated"),
+    onError: (event) => logger.warn("OpenAI Realtime error", event),
+  });
 
   ws.on("message", (data: RawData) => {
     const raw =
@@ -138,59 +144,9 @@ export const createOpenAiRealtimeClient = ({
 
     try {
       const event = JSON.parse(raw) as { type?: string; delta?: string; [key: string]: unknown };
-      if (event.type === "session.updated") {
-        logger.info("OpenAI Realtime session updated");
-      }
-
-      if (event.type === "error") {
-        logger.warn("OpenAI Realtime error", event);
-      }
-
-      if (
-        (event.type === "response.output_audio.delta" || event.type === "response.audio.delta") &&
-        typeof event.delta === "string"
-      ) {
-        onAudioDelta(event.delta);
-      }
-
-      if (event.type === "response.output_text.delta" && typeof event.delta === "string") {
-        transcriptBuffer += event.delta;
-      }
-
-      if (event.type?.startsWith?.("response.output_text")) {
-        logger.info("OpenAI Realtime text event", { type: event.type });
-      }
-
-      if (event.type === "response.done" && transcriptBuffer.length > 0) {
-        const transcript = transcriptBuffer.trim();
-        transcriptBuffer = "";
-        if (transcript.length > 0) {
-          onTranscript?.(transcript);
-        }
-      }
-
-      if (event.type === "conversation.item.input_audio_transcription.completed") {
-        const transcript = typeof event.transcript === "string" ? event.transcript.trim() : "";
-        if (transcript.length > 0) {
-          onTranscript?.(transcript);
-        }
-      }
-
-      if (event.type === "conversation.item.created") {
-        const item = event.item as { type?: string; name?: string; call_id?: string; arguments?: string };
-        if (item?.type === "function_call" && item.name && item.call_id) {
-          const parsedArgs = item.arguments ? safeJsonParse(item.arguments) : null;
-          onFunctionCall?.({ name: item.name, callId: item.call_id, arguments: parsedArgs });
-        }
-      }
-
-      if (event.type === "response.function_call_arguments.done") {
-        const callId = typeof event.call_id === "string" ? event.call_id : null;
-        const name = typeof event.name === "string" ? event.name : null;
-        const args = typeof event.arguments === "string" ? safeJsonParse(event.arguments) : null;
-        if (callId && name) {
-          onFunctionCall?.({ name, callId, arguments: args });
-        }
+      const handler = event.type ? eventHandlers[event.type] : undefined;
+      if (handler) {
+        handler(event);
       }
     } catch (error) {
       logger.warn("Failed to parse OpenAI Realtime message", error);
@@ -289,4 +245,68 @@ const safeJsonParse = (value: string): unknown => {
     logger.warn("Failed to parse function call arguments", error);
     return null;
   }
+};
+
+type RealtimeEvent = { type?: string; delta?: string; [key: string]: unknown };
+
+type EventHandlers = Record<string, (event: RealtimeEvent) => void>;
+
+const buildEventHandlers = (handlers: {
+  onAudioDelta: (audio: string) => void;
+  onTranscript?: (text: string) => void;
+  onFunctionCall?: (payload: { name: string; callId: string; arguments: unknown }) => void;
+  onSessionUpdated: () => void;
+  onError: (event: RealtimeEvent) => void;
+}): EventHandlers => {
+  let transcriptBuffer = "";
+
+  return {
+    "session.updated": () => handlers.onSessionUpdated(),
+    error: (event) => handlers.onError(event),
+    "response.output_audio.delta": (event) => {
+      if (typeof event.delta === "string") {
+        handlers.onAudioDelta(event.delta);
+      }
+    },
+    "response.audio.delta": (event) => {
+      if (typeof event.delta === "string") {
+        handlers.onAudioDelta(event.delta);
+      }
+    },
+    "response.output_text.delta": (event) => {
+      if (typeof event.delta === "string") {
+        transcriptBuffer += event.delta;
+      }
+    },
+    "response.done": () => {
+      if (transcriptBuffer.length > 0) {
+        const transcript = transcriptBuffer.trim();
+        transcriptBuffer = "";
+        if (transcript.length > 0) {
+          handlers.onTranscript?.(transcript);
+        }
+      }
+    },
+    "conversation.item.input_audio_transcription.completed": (event) => {
+      const transcript = typeof event.transcript === "string" ? event.transcript.trim() : "";
+      if (transcript.length > 0) {
+        handlers.onTranscript?.(transcript);
+      }
+    },
+    "conversation.item.created": (event) => {
+      const item = event.item as { type?: string; name?: string; call_id?: string; arguments?: string };
+      if (item?.type === "function_call" && item.name && item.call_id) {
+        const parsedArgs = item.arguments ? safeJsonParse(item.arguments) : null;
+        handlers.onFunctionCall?.({ name: item.name, callId: item.call_id, arguments: parsedArgs });
+      }
+    },
+    "response.function_call_arguments.done": (event) => {
+      const callId = typeof event.call_id === "string" ? event.call_id : null;
+      const name = typeof event.name === "string" ? event.name : null;
+      const args = typeof event.arguments === "string" ? safeJsonParse(event.arguments) : null;
+      if (callId && name) {
+        handlers.onFunctionCall?.({ name, callId, arguments: args });
+      }
+    },
+  };
 };
