@@ -144,6 +144,10 @@ export const clearSession = (callId: string): void => {
 
 export const listSessions = (): CallSession[] => Array.from(sessions.values());
 
+export const clearAllSessions = (): void => {
+  sessions.clear();
+};
+
 const isStartMessage = (message: TwilioStreamMessage): message is { event: "start"; start: TwilioStartPayload } =>
   message.event === "start" && typeof message.start === "object" && message.start !== null;
 

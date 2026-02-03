@@ -148,3 +148,13 @@ After any code change, run:
 
 - `npx tsc --noEmit`
   Fix all TS errors before finishing.
+
+## Testing requirements
+
+- This repository uses automated tests (Vitest).
+- After making any code changes, you MUST run the full test suite (`pnpm test`).
+- If tests fail, you must fix the code until all tests pass before responding.
+- Do not disable, skip, or weaken tests unless explicitly instructed.
+- If new logic is added (especially orchestration, slot handling, or date logic), add or update tests accordingly.
+- Prefer improving code to satisfy existing tests rather than modifying test assertions.
+- Tests that cover clarification loops, slot validation, or orchestration flow are considered critical and should not be removed.

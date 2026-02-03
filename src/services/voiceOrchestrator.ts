@@ -1,5 +1,6 @@
 import { dispatchToolCall } from "../ai/toolRouter";
 import { createOpenAiRealtimeClient } from "../integrations/openaiRealtimeClient";
+import type { RealtimeClient, RealtimeClientOptions } from "../integrations/openaiRealtimeClient";
 import twilioOffersPrompt from "../prompts/system/twilioOffersPrompt";
 import { getSession } from "./twilioMediaStreamService";
 import { logger } from "../utils/logger";
@@ -8,6 +9,7 @@ import type { TwilioStreamAction } from "./twilioMediaStreamService";
 type OrchestratorOptions = {
   onOutboundAudio: (base64Audio: string, streamId?: string) => void;
   onSessionStarted?: (callId: string) => void;
+  realtimeFactory?: (options: RealtimeClientOptions) => RealtimeClient;
 };
 
 type OrchestratorState = {
@@ -16,10 +18,14 @@ type OrchestratorState = {
   greeted: boolean;
 };
 
-export const createVoiceOrchestrator = ({ onOutboundAudio, onSessionStarted }: OrchestratorOptions) => {
+export const createVoiceOrchestrator = ({
+  onOutboundAudio,
+  onSessionStarted,
+  realtimeFactory,
+}: OrchestratorOptions) => {
   const state: OrchestratorState = { greeted: false };
 
-  const realtime = createOpenAiRealtimeClient({
+  const realtime = (realtimeFactory ?? createOpenAiRealtimeClient)({
     instructions: twilioOffersPrompt,
     tools: [
       {

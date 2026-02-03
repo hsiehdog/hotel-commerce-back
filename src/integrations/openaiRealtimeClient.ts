@@ -2,7 +2,7 @@ import WebSocket, { RawData } from "ws";
 import env from "../config/env";
 import { logger } from "../utils/logger";
 
-type RealtimeClientOptions = {
+export type RealtimeClientOptions = {
   instructions: string;
   onAudioDelta: (base64Audio: string) => void;
   onTranscript?: (text: string) => void;
@@ -14,7 +14,7 @@ type RealtimeClientOptions = {
   }>;
 };
 
-type RealtimeClient = {
+export type RealtimeClient = {
   sendAudio: (base64Audio: string) => void;
   sendFunctionCallOutput: (callId: string, output: unknown) => void;
   requestResponse: () => void;
