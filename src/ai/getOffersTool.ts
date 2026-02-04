@@ -47,6 +47,7 @@ export const resolveOfferSlots = (
   now: Date = new Date(),
 ): ToolValidationResult => {
   const incoming = coerceArgs(rawArgs);
+  const hasUpdates = hasSlotUpdates(current, incoming);
   const merged = mergeIntent(current, incoming);
 
   const { intent: withDefaults, missingFields } = applyDefaultsAndMissing(merged);
@@ -94,10 +95,26 @@ export const resolveOfferSlots = (
     );
   }
 
-  return {
-    status: "OK",
-    slots: finalIntent,
-  };
+  if (finalIntent.confirmation_pending) {
+    if (hasUpdates) {
+      return buildClarification(
+        { ...finalIntent, confirmation_pending: true },
+        [],
+        buildConfirmationPrompt(finalIntent),
+      );
+    }
+
+    return {
+      status: "OK",
+      slots: { ...finalIntent, confirmation_pending: false },
+    };
+  }
+
+  return buildClarification(
+    { ...finalIntent, confirmation_pending: true },
+    [],
+    buildConfirmationPrompt(finalIntent),
+  );
 };
 
 const buildClarification = (slots: OfferIntent, missingFields: string[], clarificationPrompt: string): ToolValidationResult => ({
@@ -373,3 +390,47 @@ const buildRoomDescription = (slots: OfferIntent, adults: number, children: numb
 };
 
 const formatMoney = (amount: number): string => `$${amount}`;
+const formatOptionalFlag = (value: boolean | null): string => {
+  if (value === null) {
+    return "not mentioned";
+  }
+  return value ? "yes" : "no";
+};
+
+const hasSlotUpdates = (current: OfferIntent, incoming: GetOffersToolArgs): boolean => {
+  const entries: Array<[keyof GetOffersToolArgs, unknown]> = Object.entries(incoming) as Array<
+    [keyof GetOffersToolArgs, unknown]
+  >;
+
+  return entries.some(([key, value]) => {
+    if (typeof value === "undefined") {
+      return false;
+    }
+    return current[key as keyof OfferIntent] !== value;
+  });
+};
+
+const buildConfirmationPrompt = (slots: OfferIntent): string => {
+  const spokenCheckIn = slots.check_in
+    ? formatDateForSpeech(slots.check_in, slots.property_timezone)
+    : "not provided";
+  const spokenCheckOut = slots.check_out
+    ? formatDateForSpeech(slots.check_out, slots.property_timezone)
+    : "not provided";
+  const lines = [
+    "Just to confirm, here are the details I have:",
+    `check-in ${spokenCheckIn}, check-out ${spokenCheckOut},`,
+    `nights ${slots.nights ?? "not provided"},`,
+    `adults ${slots.adults ?? "not provided"},`,
+    `rooms ${slots.rooms ?? "not provided"},`,
+    `children ${slots.children ?? 0},`,
+    `pet-friendly ${formatOptionalFlag(slots.pet_friendly)},`,
+    `accessible room ${formatOptionalFlag(slots.accessible_room)},`,
+    `two beds ${formatOptionalFlag(slots.needs_two_beds)},`,
+    `budget cap ${typeof slots.budget_cap === "number" ? formatMoney(slots.budget_cap) : "none"},`,
+    `parking needed ${formatOptionalFlag(slots.parking_needed)}.`,
+    "Is that all correct?",
+  ];
+
+  return lines.join(" ");
+};

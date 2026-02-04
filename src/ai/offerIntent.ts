@@ -12,6 +12,7 @@ export type OfferIntent = {
   parking_needed: boolean | null;
   language: string | null;
   property_timezone: string;
+  confirmation_pending: boolean;
 };
 
 export const createEmptyOfferIntent = (timezone = "America/Los_Angeles"): OfferIntent => ({
@@ -28,4 +29,5 @@ export const createEmptyOfferIntent = (timezone = "America/Los_Angeles"): OfferI
   parking_needed: null,
   language: null,
   property_timezone: timezone,
+  confirmation_pending: false,
 });

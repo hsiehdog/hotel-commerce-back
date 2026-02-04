@@ -60,8 +60,20 @@ describe("voice orchestrator tool gating", () => {
     });
 
     const second = lastToolOutput(controller);
-    expect(second?.status).toBe("OK");
+    expect(second?.status).toBe("NEEDS_CLARIFICATION");
+    expect(second?.clarificationPrompt).toMatch(/confirm/i);
     expect(controller.responseCreateCount).toBe(2);
+
+    controller.emitFunctionCall("get_offers", {
+      check_in: "2026-02-04",
+      check_out: "2026-02-05",
+      adults: 2,
+      rooms: 1,
+    });
+
+    const third = lastToolOutput(controller);
+    expect(third?.status).toBe("OK");
+    expect(controller.responseCreateCount).toBe(3);
   });
 
   it("asks for missing check-out", () => {
@@ -127,6 +139,21 @@ describe("voice orchestrator tool gating", () => {
 
     expect(controller.sentFunctionOutputs).toHaveLength(1);
     expect(controller.responseCreateCount).toBe(1);
+    expect(lastToolOutput(controller)?.status).toBe("NEEDS_CLARIFICATION");
+
+    controller.emitFunctionCall(
+      "get_offers",
+      {
+        check_in: "2026-02-03",
+        check_out: "2026-02-05",
+        adults: 2,
+        rooms: 1,
+      },
+      "call_2",
+    );
+
+    expect(controller.sentFunctionOutputs).toHaveLength(2);
+    expect(controller.responseCreateCount).toBe(2);
     expect(lastToolOutput(controller)?.status).toBe("OK");
   });
 });

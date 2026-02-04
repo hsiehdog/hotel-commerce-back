@@ -4,6 +4,7 @@ import { createEmptyOfferIntent } from "../ai/offerIntent";
 
 describe("tool router offers", () => {
   it("returns flexible and non-refundable offers with pricing", () => {
+    const session = { intent: createEmptyOfferIntent() };
     const result = dispatchToolCall({
       name: "get_offers",
       args: {
@@ -14,16 +15,34 @@ describe("tool router offers", () => {
         pet_friendly: true,
         needs_two_beds: true,
       },
-      session: { intent: createEmptyOfferIntent() },
+      session,
     });
 
-    expect(result.status).toBe("OK");
-    if (result.status !== "OK") {
+    expect(result.status).toBe("NEEDS_CLARIFICATION");
+    if (result.status !== "NEEDS_CLARIFICATION") {
       return;
     }
 
-    expect(result.offers).toHaveLength(2);
-    const [flexible, saver] = result.offers;
+    const confirmed = dispatchToolCall({
+      name: "get_offers",
+      args: {
+        check_in: "2026-02-10",
+        check_out: "2026-02-12",
+        adults: 2,
+        rooms: 1,
+        pet_friendly: true,
+        needs_two_beds: true,
+      },
+      session,
+    });
+
+    expect(confirmed.status).toBe("OK");
+    if (confirmed.status !== "OK") {
+      return;
+    }
+
+    expect(confirmed.offers).toHaveLength(2);
+    const [flexible, saver] = confirmed.offers;
     if (!flexible || !saver) {
       return;
     }
