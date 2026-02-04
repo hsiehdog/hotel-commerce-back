@@ -1,4 +1,5 @@
 import { OfferIntent } from "./offerIntent";
+import type { AriSnapshot, RatePlanSnapshot, RoomTypeSnapshot } from "./ariSnapshot";
 import { formatDateForSpeech, normalizeCheckOut, normalizeDate } from "./dateResolution";
 
 export type GetOffersToolArgs = Partial<{
@@ -37,6 +38,8 @@ export type OfferOption = {
   price: {
     currency: "USD";
     per_night: number;
+    subtotal: number;
+    taxes_and_fees: number;
     total: number;
   };
 };
@@ -223,49 +226,19 @@ const mergeIntent = (current: OfferIntent, incoming: GetOffersToolArgs): OfferIn
   parking_needed: typeof incoming.parking_needed === "boolean" ? incoming.parking_needed : current.parking_needed,
 });
 
-export const buildStubOffers = (slots: OfferIntent): OfferOption[] => {
-  const nights = resolveNights(slots);
+export const buildOffersFromSnapshot = (snapshot: AriSnapshot, slots: OfferIntent): OfferOption[] => {
+  const roomType = snapshot.roomTypes[0];
+  if (!roomType) {
+    return [];
+  }
+
   const rooms = slots.rooms ?? 1;
-  const adults = slots.adults ?? 2;
-  const children = slots.children ?? 0;
+  const nights = snapshot.nights;
+  const roomDescription = buildRoomDescription(slots, roomType);
 
-  const flexiblePerNight = buildFlexibleRate(slots, adults, children);
-  const nonRefundPerNight = Math.max(80, Math.round(flexiblePerNight * 0.85));
-
-  const flexibleTotal = flexiblePerNight * nights * rooms;
-  const nonRefundTotal = nonRefundPerNight * nights * rooms;
-
-  const roomName = buildRoomName(slots);
-  const roomDescription = buildRoomDescription(slots, adults, children);
-
-  return [
-    {
-      id: "offer_flexible",
-      name: `${roomName} - Flexible`,
-      description: roomDescription,
-      rate_type: "flexible",
-      cancellation_policy: "You can cancel for free up to a day before check-in.",
-      payment_policy: "You can pay when you arrive.",
-      price: {
-        currency: "USD",
-        per_night: flexiblePerNight,
-        total: flexibleTotal,
-      },
-    },
-    {
-      id: "offer_non_refundable",
-      name: `${roomName} - Pay Now Saver`,
-      description: roomDescription,
-      rate_type: "non_refundable",
-      cancellation_policy: "This one is non-refundable.",
-      payment_policy: "Payment is due now.",
-      price: {
-        currency: "USD",
-        per_night: nonRefundPerNight,
-        total: nonRefundTotal,
-      },
-    },
-  ];
+  return roomType.ratePlans.slice(0, 2).map((plan) =>
+    buildOfferOption(plan, roomType, snapshot, roomDescription, rooms, nights),
+  );
 };
 
 export const buildSlotSpeech = (slots: OfferIntent, offers: OfferOption[]): string => {
@@ -300,7 +273,7 @@ export const buildSlotSpeech = (slots: OfferIntent, offers: OfferOption[]): stri
         ? "It's a bit cheaper if you're set on your dates."
         : "It's a little more flexible if plans might change.";
     lines.push(
-      `${offerPrefix}: ${offer.name}. ${offer.description} ${offer.cancellation_policy} ${offer.payment_policy} ${savingsNote} ${formatMoney(offer.price.per_night)} per night, total ${formatMoney(offer.price.total)} for ${nights} night${nights === 1 ? "" : "s"} and ${rooms} room${rooms === 1 ? "" : "s"}.`,
+      `${offerPrefix}: ${offer.name}. ${offer.description} ${offer.cancellation_policy} ${offer.payment_policy} ${savingsNote} Total ${formatMoney(offer.price.total)} for ${nights} night${nights === 1 ? "" : "s"} and ${rooms} room${rooms === 1 ? "" : "s"}.`,
     );
   }
 
@@ -323,52 +296,43 @@ const resolveNights = (slots: OfferIntent): number => {
   return 1;
 };
 
-const buildFlexibleRate = (slots: OfferIntent, adults: number, children: number): number => {
-  let rate = 160;
+const buildOfferOption = (
+  plan: RatePlanSnapshot,
+  roomType: RoomTypeSnapshot,
+  snapshot: AriSnapshot,
+  roomDescription: string,
+  rooms: number,
+  nights: number,
+): OfferOption => {
+  const isRefundable = plan.refundability === "REFUNDABLE";
+  const rateType = isRefundable ? "flexible" : "non_refundable";
+  const nameSuffix = isRefundable ? "Flexible" : "Pay Now Saver";
+  const perNight = round2(plan.pricing.totalAfterTax / Math.max(1, rooms * nights));
 
-  if (adults > 2) {
-    rate += (adults - 2) * 20;
-  }
-
-  if (children > 0) {
-    rate += children * 10;
-  }
-
-  if (slots.needs_two_beds) {
-    rate += 15;
-  }
-
-  if (slots.accessible_room) {
-    rate += 10;
-  }
-
-  if (slots.pet_friendly) {
-    rate += 25;
-  }
-
-  if (slots.parking_needed) {
-    rate += 15;
-  }
-
-  if (typeof slots.budget_cap === "number" && slots.budget_cap > 0) {
-    rate = Math.min(rate, Math.max(80, Math.floor(slots.budget_cap * 0.95)));
-  }
-
-  return Math.max(80, Math.round(rate));
+  return {
+    id: plan.ratePlanId,
+    name: `${roomType.roomTypeName} - ${nameSuffix}`,
+    description: roomDescription,
+    rate_type: rateType,
+    cancellation_policy: isRefundable
+      ? "You can cancel for free up to a day before check-in."
+      : "This one is non-refundable.",
+    payment_policy: plan.paymentTiming === "PAY_NOW" ? "Payment is due now." : "You can pay when you arrive.",
+    price: {
+      currency: snapshot.currency as "USD",
+      per_night: perNight,
+      subtotal: plan.pricing.totalBeforeTax,
+      taxes_and_fees: plan.pricing.taxesAndFees,
+      total: plan.pricing.totalAfterTax,
+    },
+  };
 };
 
-const buildRoomName = (slots: OfferIntent): string => {
-  const bedLabel = slots.needs_two_beds ? "Double Queen" : "King";
-  if (slots.accessible_room) {
-    return `Accessible ${bedLabel} Room`;
-  }
-  return `${bedLabel} Room`;
-};
-
-const buildRoomDescription = (slots: OfferIntent, adults: number, children: number): string => {
+const buildRoomDescription = (slots: OfferIntent, roomType: RoomTypeSnapshot): string => {
+  const adults = slots.adults ?? 2;
+  const children = slots.children ?? 0;
   const occupancy = Math.max(2, adults + children);
-  const bedLine = slots.needs_two_beds ? "Two queen beds" : "One king bed";
-  const details: string[] = [`Sleeps up to ${occupancy}.`, `${bedLine}.`, "Free Wi-Fi."];
+  const details: string[] = [`Sleeps up to ${Math.min(occupancy, roomType.maxOccupancy)}.`, "Free Wi-Fi."];
 
   if (children > 0) {
     details.push("Sofa bed available for kids.");
@@ -389,13 +353,24 @@ const buildRoomDescription = (slots: OfferIntent, adults: number, children: numb
   return details.join(" ");
 };
 
-const formatMoney = (amount: number): string => `$${amount}`;
+const formatMoney = (amount: number): string => {
+  const rounded = round2(amount);
+  const dollars = Math.floor(rounded);
+  const cents = Math.round((rounded - dollars) * 100);
+  if (cents === 0) {
+    return `${dollars} dollars`;
+  }
+  const centLabel = cents === 1 ? "cent" : "cents";
+  return `${dollars} dollars and ${cents} ${centLabel}`;
+};
 const formatOptionalFlag = (value: boolean | null): string => {
   if (value === null) {
     return "not mentioned";
   }
   return value ? "yes" : "no";
 };
+
+const round2 = (value: number): number => Math.round(value * 100) / 100;
 
 const hasSlotUpdates = (current: OfferIntent, incoming: GetOffersToolArgs): boolean => {
   const entries: Array<[keyof GetOffersToolArgs, unknown]> = Object.entries(incoming) as Array<
