@@ -1,5 +1,6 @@
 import { logger } from "../utils/logger";
 import { createEmptyOfferIntent, type OfferIntent } from "../ai/offerIntent";
+import type { OfferOption } from "../ai/getOffersTool";
 
 export type CollectedIntent = {
   dates: {
@@ -15,7 +16,7 @@ export type CallSession = {
   callerNumber?: string | null;
   language?: string | null;
   collectedIntent: CollectedIntent;
-  offers: unknown[];
+  offers: OfferOption[];
   intent: OfferIntent;
   createdAt: Date;
   updatedAt: Date;

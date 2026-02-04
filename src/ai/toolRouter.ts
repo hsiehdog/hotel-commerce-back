@@ -1,10 +1,10 @@
 import { createEmptyOfferIntent, type OfferIntent } from "./offerIntent";
-import { buildSlotSpeech, resolveOfferSlots } from "./getOffersTool";
+import { buildSlotSpeech, buildStubOffers, resolveOfferSlots, type OfferOption } from "./getOffersTool";
 
 export type ToolCallContext = {
   name: string;
   args: unknown;
-  session?: { intent: OfferIntent };
+  session?: { intent: OfferIntent; offers?: OfferOption[] };
   now?: Date;
 };
 
@@ -12,6 +12,7 @@ export type ToolOutput =
   | {
       status: "OK";
       slots: OfferIntent;
+      offers: OfferOption[];
       message: string;
       speech: string;
     }
@@ -42,10 +43,16 @@ export const dispatchToolCall = ({ name, args, session, now }: ToolCallContext):
     return result;
   }
 
+  const offers = buildStubOffers(result.slots);
+  if (session) {
+    session.offers = offers;
+  }
+
   return {
     status: "OK",
     slots: result.slots,
+    offers,
     message: "Get offers tool will be called now with the following slots",
-    speech: buildSlotSpeech(result.slots),
+    speech: buildSlotSpeech(result.slots, offers),
   };
 };
