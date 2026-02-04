@@ -27,6 +27,8 @@ const envSchema = z.object({
     .url({ message: "TWILIO_VOICE_STREAM_URL must be a valid URL" })
     .optional(),
   TWILIO_VOICE_GREETING: z.string().optional(),
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
 });
 
 const env = envSchema.parse(process.env);
