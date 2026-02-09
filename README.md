@@ -1,227 +1,166 @@
-# AI-Ready Backend
+# Hotel Commerce Backend
 
-TypeScript + Express backend scaffold that combines PostgreSQL/Prisma persistence, Better Auth powered authentication, and the Vercel AI SDK for LLM-powered endpoints. Designed to plug into multiple AI-focused products.
+TypeScript + Express backend for hotel voice commerce. The app combines:
+- Better Auth session/cookie auth
+- Twilio voice + media stream handling
+- OpenAI Realtime orchestration
+- Deterministic ARI-based offer generation with commerce guardrails
 
 ## Tech Stack
 
-- **Express 5** with Helmet/Cors/Morgan hardening
-- **TypeScript** tooling with `ts-node-dev` for hot reload
-- **Prisma** ORM targeting PostgreSQL (with Better Auth tables baked in)
-- **Better Auth** Prisma adapter for password auth + secure session cookies (per [discussion #5578](https://github.com/better-auth/better-auth/discussions/5578))
-- **Vercel AI SDK** (`ai` + `@ai-sdk/openai`) for LLM calls
+- Express 5
+- TypeScript
+- Prisma + PostgreSQL
+- Better Auth
+- OpenAI Realtime API (`ws`)
+- Twilio Voice + Media Streams
+- Redis (ARI response cache)
+- Vitest
 
 ## Getting Started
 
-1. Install dependencies (pnpm is required):
-   ```bash
-   pnpm install
-   ```
-2. Copy the environment template and fill in secrets:
-   ```bash
-   cp .env.example .env
-   ```
-   - Set `BETTER_AUTH_SECRET` to a long random value.
-   - Update `APP_BASE_URL` and `TRUSTED_ORIGINS` so Better Auth can validate callback URLs and allow your frontend origin(s) to exchange cookies.
-3. Apply database migrations (creates the Prisma Client as well):
-   ```bash
-   pnpm prisma:migrate
-   ```
-4. Start the dev server:
-   ```bash
-   pnpm dev
-   ```
+1. Install dependencies:
+```bash
+pnpm install
+```
+
+2. Start local infra (Postgres + Redis):
+```bash
+docker-compose up -d
+```
+
+3. Create env file:
+```bash
+cp .env.example .env
+```
+
+4. Required env vars:
+- `DATABASE_URL`
+- `BETTER_AUTH_SECRET`
+- `OPENAI_API_KEY`
+
+5. Useful optional env vars:
+- `APP_BASE_URL` (defaults to `http://localhost:<PORT>`)
+- `TRUSTED_ORIGINS`
+- `OPENAI_REALTIME_MODEL`
+- `OPENAI_REALTIME_VOICE`
+- `OPENAI_REALTIME_TRANSCRIBE_MODEL`
+- `REDIS_URL`
+- `ARI_CACHE_TTL_SECONDS`
+- `TWILIO_VOICE_STREAM_URL`
+- `TWILIO_VOICE_GREETING`
+- `TWILIO_ACCOUNT_SID`
+- `TWILIO_AUTH_TOKEN`
+
+6. Apply migrations + generate Prisma client:
+```bash
+pnpm prisma:migrate
+pnpm prisma:generate
+```
+
+7. Run the app:
+```bash
+pnpm dev
+```
 
 ## Scripts
 
-- `pnpm dev` – start Express with `ts-node-dev`
-- `pnpm build` – compile to `dist/`
-- `pnpm start` – run the compiled build
-- `pnpm prisma:migrate` – run migrations against the `DATABASE_URL`
-- `pnpm prisma:generate` – regenerate Prisma Client
+- `pnpm dev` - run in watch mode
+- `pnpm build` - compile TypeScript
+- `pnpm start` - run compiled server
+- `pnpm test` - run Vitest suite
+- `pnpm prisma:migrate` - apply Prisma migrations
+- `pnpm prisma:generate` - regenerate Prisma client
 
 ## API Surface
 
-| Method | Route                       | Description                                                                    | Auth                       |
-| ------ | --------------------------- | ------------------------------------------------------------------------------ | -------------------------- |
-| GET    | `/health`                   | Health probe                                                                   | Public                     |
-| GET    | `/users/me`                 | Returns the authenticated user record                                          | Better Auth session cookie |
-| PATCH  | `/users/me`                 | Updates the user's display name via Better Auth `updateUser`                   | Better Auth session cookie |
-| GET    | `/users/me/sessions`        | Last 20 AI sessions tied to the user                                           | Better Auth session cookie |
-| POST   | `/users/me/change-password` | Calls Better Auth `changePassword` to rotate credentials                       | Better Auth session cookie |
-| POST   | `/ai/generate`              | Accepts `{ "prompt": string }` and streams an LLM response persisted to the DB | Better Auth session cookie |
-| POST   | `/users/sign-out`           | Revokes the current Better Auth session and clears cookies                     | Better Auth session cookie |
+### Auth
 
-Better Auth issues HTTP-only cookies (`better-auth.session_token`, etc.) that the frontend must forward on every request to protected routes. Non-browser clients can store the session cookie manually and send it via the `Cookie` header. The profile/password endpoints above simply proxy Better Auth's stock [`updateUser`](https://www.better-auth.com/docs/concepts/users-accounts) and `changePassword` handlers so password hashing and audit trails remain centralized.
+- `POST /auth/*` - Better Auth proxy routes (sign-in/sign-up/get-session/sign-out/etc.)
 
-### Endpoint Inputs & Outputs
+### User
 
-| Endpoint                    | Method | Request Body                                                                            | Successful Response                                                                                       | Failure Cases                                                                                         |
-| --------------------------- | ------ | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `/health`                   | GET    | _None_                                                                                  | `200 OK` with `{ "status": "ok", "timestamp": "ISO8601" }`                                                | _n/a_                                                                                                 |
-| `/users/me`                 | GET    | _None_                                                                                  | `200 OK` with `{ "user": Express.User }`                                                                  | `401` if no Better Auth session                                                                       |
-| `/users/me`                 | PATCH  | `{ "name": string }`                                                                    | `200 OK` with `{ "status": true, "name": "..." }`                                                         | `400` invalid payload, `401` unauthenticated                                                          |
-| `/users/me/sessions`        | GET    | _None_                                                                                  | `200 OK` with `{ "sessions": AiSession[] }`                                                               | `401` unauthenticated                                                                                 |
-| `/users/me/change-password` | POST   | `{ "currentPassword": string, "newPassword": string, "revokeOtherSessions"?: boolean }` | `200 OK` with Better Auth payload `{ "token": string \| null, "user": {...} }`                            | `400` invalid payload, `401` unauthenticated, `401/400` from Better Auth if current password is wrong |
-| `/ai/generate`              | POST   | `{ "prompt": string }`                                                                  | `200 OK` with `{ "data": { "text": string, "sessionId": string, "model": string, "createdAt": string } }` | `400` invalid body, `401` unauthenticated                                                             |
-| `/users/sign-out`           | POST   | _None_                                                                                  | `200 OK`/`204` plus Better Auth `Set-Cookie` headers clearing the session                                 | `401` if unauthenticated                                                                              |
+- `GET /users/me` (auth required)
+- `PATCH /users/me` (auth required)
+- `POST /users/me/change-password` (auth required)
+- `POST /users/sign-out` (auth required)
 
-`AiSession` mirrors the Prisma model that records each LLM interaction. The `/users/me/sessions` response simply wraps the last 20 rows returned by Prisma:
+### Offers
 
-```ts
-type AiSession = {
-  id: string;
-  userId: string;
-  prompt: string;
-  response: string;
-  model: string;
-  createdAt: string; // ISO8601 timestamp
-};
-```
+- `POST /offers/generate` (auth required)
+  - Input: `{ slots, intent? }`
+  - Output: `{ data: { status: "OK", slots, offers, message, speech } }`
+  - Validation/clarification errors return `422` via `ApiError`
 
-`POST /ai/generate` automatically fetches up to the last five `AiSession` entries for the authenticated user and sends them as structured `{ role, content }` history `messages` (alternating user/assistant turns). The LLM call also sets a custom system prompt and appends the current request body as the latest user message, keeping responses grounded in recent conversation context.
+### Twilio Voice
 
-### Better Auth Endpoints
+- `POST /twilio/voice/incoming`
+  - Twilio webhook entrypoint
+  - Returns TwiML that connects call audio to websocket stream
 
-- The entire Better Auth router is exposed at `/auth/*` (the Express app proxies requests directly to `betterAuth.handler` as recommended in discussion #5578).
-- Use the stock endpoints such as `POST /auth/sign-up/email`, `POST /auth/sign-in/email`, `GET /auth/get-session`, etc.
-- Successful sign-in/sign-up responses include `Set-Cookie` headers for `better-auth.session_token` and its related helpers. These cookies are the only credentials the API expects.
+- `GET /twilio/voice/sessions`
+  - Returns in-memory call session snapshots
 
-## Project Structure
+- `WS /twilio/voice/stream`
+  - Media stream endpoint used by Twilio `<Connect><Stream>`
 
-```
-src
-├── app.ts               # Express app wiring
-├── index.ts             # HTTP server bootstrap
-├── config               # env + runtime flags
-├── controllers          # Route handlers
-├── middleware           # Auth context + error handlers
-├── routes               # Express routers (auth proxy, health, users, ai)
-├── services             # Domain logic (LLM helpers)
-├── lib                  # Prisma singleton + Better Auth instance
-└── types                # Express augmentations
-```
+## Commerce Brain v1
 
-## Vercel AI Usage
+Core policy is deterministic and versioned.
 
-`aiService.generateResponse` demonstrates how to call the Vercel AI SDK with an OpenAI model. Swap providers/models by editing `AI_MODEL` or by injecting a different client in the service.
+### Policy Modules
 
-## Authentication Flow
+- `src/services/commerce/commercePolicyV1.ts`
+- `src/services/commerce/commerceEvaluators.ts`
+- `src/services/commerce/commerceContract.ts`
 
-1. Call the Better Auth endpoints under `/auth` (e.g., `POST /auth/sign-in/email`).
-2. Let the frontend/browser store the HTTP-only cookies that Better Auth sets. For non-browser clients, capture the `Set-Cookie` response headers and reuse them for subsequent API calls.
-3. Ensure every protected request forwards the cookies (typically via `fetch(..., { credentials: "include" })`). The backend uses `auth.api.getSession({ headers })` to resolve the session and populate `req.user`.
-4. For split frontend/backends, set `TRUSTED_ORIGINS` so Better Auth will accept cross-site cookie requests, matching the pattern from the shared GitHub discussion.
+### Guardrails Implemented
 
-## Commerce Brain v1 (Operational Rules)
+- Max two offers
+- Pricing basis hierarchy:
+  1. `totalAfterTax`
+  2. `totalBeforeTax + taxesAndFees`
+  3. `totalBeforeTax` (degraded mode)
+  4. fail closed (invalid candidate)
+- No synthetic tax estimation
+- Exact currency matching only (no FX)
+- Strategy-based price delta limits (`protect_rate`, `balanced`, `fill_rooms`)
+- Saver-primary exception only under locked compression + delta thresholds
+- Fallback clarification when pricing is not trustworthy
 
-The offer engine now includes a deterministic commerce policy layer (no ML, no inventory persistence) with explicit safety constraints.
+### Offer Metadata
 
-### Policy + Contracts
+Each returned offer may include `commerce_metadata` with:
+- `priceBasisUsed`
+- `degradedPriceControls`
+- `isPrimary`
+- `strategyMode`
+- `saverPrimaryExceptionApplied`
 
-- Policy constants and strategy thresholds live in `src/services/commerce/commercePolicyV1.ts`.
-- Core deterministic evaluators live in `src/services/commerce/commerceEvaluators.ts`.
-- Commerce response contract scaffolding lives in `src/services/commerce/commerceContract.ts`.
-- Offer selection still returns a maximum of 2 offers and preserves existing endpoint response shape.
+## Cloudbeds `getRatePlans` Stubs
 
-### Locked Strategy Modes
+The ARI source is stubbed in:
+- `src/integrations/cloudbeds/cloudbedsGetRatePlansStub.ts`
 
-- `protect_rate`: tighter delta guardrails, refundable-first behavior.
-- `balanced` (default): conversion + margin with medium policy risk.
-- `fill_rooms`: wider delta guardrails, occupancy-first behavior.
+Supported local/test scenarios via `slots.stub_scenario`:
+- `default`
+- `saver_primary_accessible`
+- `currency_mismatch`
+- `before_tax_only`
+- `invalid_pricing`
 
-Price delta guardrails (based on `totalAfterTax`):
+These scenarios are for local testing and decision-engine verification.
 
-- `protect_rate`: max `20%` and `$250`
-- `balanced`: max `25%` and `$300`
-- `fill_rooms`: max `35%` and `$400`
+## Manual Offer Testing
 
-### Pricing Basis Hierarchy (Fail-Closed)
-
-Offer comparison uses this strict order:
-
-1. `totalAfterTax`
-2. `totalBeforeTax + taxesAndFees`
-3. `totalBeforeTax` (degraded mode)
-4. invalid candidate
-
-Rules:
-
-- No synthetic tax estimation.
-- No mixed basis comparison for a selected pair.
-- If basis degrades to `beforeTax`, price steering is reduced (`degradedPriceControls=true`).
-- If no comparable candidates remain, return clarification instead of fabricating prices.
-
-### Currency Handling
-
-- Exact currency match only (`candidate.currency === requestCurrency`).
-- No FX conversion in v1.
-- Mismatched candidates are invalid and excluded from ranking.
-
-### Saver-Primary Exception (Non-refundable as Primary)
-
-Default is refundable primary. Saver can become primary only when:
-
-- low inventory at selected room/rate level (`roomsAvailable <= 2`) OR estimated occupancy `>= 0.92` (if total inventory is known),
-- AND refundable vs saver delta is at least `30%`,
-- AND strict price controls are available (not degraded `beforeTax` mode).
-
-### Business Hours + Fallback Behavior
-
-Schema:
-
-- `properties(id, timezone, default_currency, ...)`
-- `property_hours(id, property_id, day_of_week, open_time, close_time, ...)`
-- Multiple `property_hours` rows per day are supported.
-- Overnight intervals are supported (`open_time > close_time`, e.g. `22:00-06:00`).
-- `00:00-00:00` means 24-hour open.
-- Missing schedule/timezone is treated as closed.
-
-Fallback CTA priority (when used by channel integrations):
-
-1. send booking link
-2. transfer to front desk (business hours only)
-3. collect waitlist
-4. suggest alternate dates
-
-### Attribution Rules (v1)
-
-- Last click within 24 hours wins.
-- Must match property, length of stay, and exact party size.
-- Check-in date tolerance is `<= 1 day`.
-- Single-credit attribution only (no multi-crediting).
-
-### Assumptions
-
-- Engine remains PMS-agnostic and ARI-driven.
-- No inventory persistence is introduced in v1.
-- Urgency messaging must be factual and source-backed; no synthetic scarcity.
-- Current offer builder uses first available room type and deterministic pairing logic.
-
-### Schema Migration
-
-This repo includes the migration:
-
-- `prisma/migrations/20260209123000_add_property_hours/migration.sql`
-
-Apply with:
+`/offers/generate` requires a valid Better Auth session cookie.
 
 ```bash
-pnpm prisma:migrate
-```
-
-### Quick Manual Test Scenarios
-
-`POST /offers/generate` is authenticated. Use a valid Better Auth session cookie.
-
-Example shell setup:
-
-```bash
-BASE_URL=http://localhost:3000
+BASE_URL=http://localhost:4000
 SESSION_COOKIE='better-auth.session_token=...'
 ```
 
-1) Standard 2-offer pairing (refundable primary expected):
-
+Standard request:
 ```bash
 curl -sS "$BASE_URL/offers/generate" \
   -H "Content-Type: application/json" \
@@ -233,68 +172,10 @@ curl -sS "$BASE_URL/offers/generate" \
       "adults": 2,
       "rooms": 1
     }
-  }' | jq '.data.offers[] | {id, rate_type, total: .price.total, commerce: .commerce_metadata}'
+  }' | jq '.data'
 ```
 
-2) Saver-primary exception (demo seed path, accessible room inventory is compressed):
-
-```bash
-curl -sS "$BASE_URL/offers/generate" \
-  -H "Content-Type: application/json" \
-  -H "Cookie: $SESSION_COOKIE" \
-  -d '{
-    "slots": {
-      "check_in": "2026-02-10",
-      "check_out": "2026-02-12",
-      "adults": 2,
-      "rooms": 1,
-      "accessible_room": true
-    }
-  }' | jq '.data.offers[0] | {rate_type, commerce: .commerce_metadata}'
-```
-
-Expected: first offer has `"rate_type": "non_refundable"` and `commerce.saverPrimaryExceptionApplied = true`.
-
-3) No inventory fallback:
-
-```bash
-curl -sS "$BASE_URL/offers/generate" \
-  -H "Content-Type: application/json" \
-  -H "Cookie: $SESSION_COOKIE" \
-  -d '{
-    "slots": {
-      "check_in": "2026-02-10",
-      "check_out": "2026-02-12",
-      "adults": 2,
-      "rooms": 99
-    }
-  }' | jq
-```
-
-Expected: `422` with a clarification message about availability.
-
-4) Stubbed `getRatePlans` scenario: Saver-primary exception:
-
-```bash
-curl -sS "$BASE_URL/offers/generate" \
-  -H "Content-Type: application/json" \
-  -H "Cookie: $SESSION_COOKIE" \
-  -d '{
-    "slots": {
-      "check_in": "2026-02-10",
-      "check_out": "2026-02-12",
-      "adults": 2,
-      "rooms": 1,
-      "accessible_room": true,
-      "stub_scenario": "saver_primary_accessible"
-    }
-  }' | jq '.data.offers[0].commerce_metadata'
-```
-
-Expected: `isPrimary=true`, `saverPrimaryExceptionApplied=true`, and first offer tends to be non-refundable.
-
-5) Stubbed `getRatePlans` scenario: currency mismatch handling:
-
+Scenario request example:
 ```bash
 curl -sS "$BASE_URL/offers/generate" \
   -H "Content-Type: application/json" \
@@ -307,51 +188,40 @@ curl -sS "$BASE_URL/offers/generate" \
       "rooms": 1,
       "stub_scenario": "currency_mismatch"
     }
-  }' | jq '.data.offers | length'
+  }' | jq '.data.offers'
 ```
 
-Expected: one valid offer (mismatched-currency candidate dropped).
+## Database Schema Notes
 
-6) Stubbed `getRatePlans` scenario: before-tax fallback basis:
+Prisma models include:
+- Better Auth tables (`users`, `auth_sessions`, `auth_accounts`, `auth_verifications`)
+- Commerce support tables:
+  - `properties`
+  - `property_hours`
 
+Recent migration:
+- `prisma/migrations/20260209123000_add_property_hours/migration.sql`
+
+## Project Structure
+
+```text
+src
+├── ai/                   # tool validation, slot resolution, offer builder
+├── controllers/          # thin HTTP controllers
+├── integrations/         # OpenAI, Twilio, Cloudbeds, Redis clients/stubs
+├── middleware/           # auth + error handling
+├── offers/               # request schemas
+├── prompts/              # system prompts
+├── routes/               # route wiring
+├── services/             # orchestration and commerce policy logic
+├── ws/                   # websocket server wiring for Twilio media stream
+└── index.ts              # server bootstrap
+```
+
+## Verification
+
+After changes, run:
 ```bash
-curl -sS "$BASE_URL/offers/generate" \
-  -H "Content-Type: application/json" \
-  -H "Cookie: $SESSION_COOKIE" \
-  -d '{
-    "slots": {
-      "check_in": "2026-02-10",
-      "check_out": "2026-02-12",
-      "adults": 2,
-      "rooms": 1,
-      "stub_scenario": "before_tax_only"
-    }
-  }' | jq '.data.offers[0].commerce_metadata'
+npx tsc --noEmit
+pnpm test
 ```
-
-Expected: `priceBasisUsed="beforeTax"` and `degradedPriceControls=true`.
-
-7) Stubbed `getRatePlans` scenario: invalid pricing fail-closed:
-
-```bash
-curl -i -sS "$BASE_URL/offers/generate" \
-  -H "Content-Type: application/json" \
-  -H "Cookie: $SESSION_COOKIE" \
-  -d '{
-    "slots": {
-      "check_in": "2026-02-10",
-      "check_out": "2026-02-12",
-      "adults": 2,
-      "rooms": 1,
-      "stub_scenario": "invalid_pricing"
-    }
-  }'
-```
-
-Expected: `422` with pricing confirmation fallback message.
-
-## Next Steps
-
-- Define additional Prisma models if your AI workflows need metadata (projects, datasets, etc.)
-- Layer in streaming responses via `generateTextStream`
-- Deploy behind a process manager (e.g., Vercel, Fly, Railway) and configure `DATABASE_URL` + secrets via your platform
