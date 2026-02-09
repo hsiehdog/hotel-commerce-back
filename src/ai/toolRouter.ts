@@ -11,12 +11,12 @@ export type ToolCallContext = {
 
 export type ToolOutput = OfferGenerationOutput | { status: "ERROR"; message: string };
 
-export const dispatchToolCall = ({ name, args, session, now }: ToolCallContext): ToolOutput => {
+export const dispatchToolCall = async ({ name, args, session, now }: ToolCallContext): Promise<ToolOutput> => {
   if (name !== "get_offers") {
     return { status: "ERROR", message: "Unknown tool" };
   }
 
-  const result = generateOffers({
+  const result = await generateOffers({
     args,
     currentIntent: session?.intent ?? createEmptyOfferIntent(),
     now,

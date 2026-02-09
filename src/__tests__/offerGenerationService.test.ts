@@ -3,8 +3,8 @@ import { createEmptyOfferIntent } from "../ai/offerIntent";
 import { generateOffers } from "../services/offerGenerationService";
 
 describe("offer generation service", () => {
-  it("returns flexible and non-refundable offers after confirmation", () => {
-    const first = generateOffers({
+  it("returns flexible and non-refundable offers after confirmation", async () => {
+    const first = await generateOffers({
       currentIntent: createEmptyOfferIntent(),
       args: {
         check_in: "2026-02-10",
@@ -21,7 +21,7 @@ describe("offer generation service", () => {
       return;
     }
 
-    const second = generateOffers({
+    const second = await generateOffers({
       currentIntent: first.slots,
       args: {
         check_in: "2026-02-10",
@@ -48,8 +48,8 @@ describe("offer generation service", () => {
     expect(saver.rate_type).toBe("non_refundable");
   });
 
-  it("returns clarification when no inventory is available", () => {
-    const first = generateOffers({
+  it("returns clarification when no inventory is available", async () => {
+    const first = await generateOffers({
       currentIntent: createEmptyOfferIntent(),
       args: {
         check_in: "2026-02-10",
@@ -64,7 +64,7 @@ describe("offer generation service", () => {
       return;
     }
 
-    const second = generateOffers({
+    const second = await generateOffers({
       currentIntent: first.slots,
       args: {
         check_in: "2026-02-10",

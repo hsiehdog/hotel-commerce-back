@@ -1,6 +1,6 @@
 import { createEmptyOfferIntent, type OfferIntent } from "../ai/offerIntent";
 import { buildSlotSpeech, buildOffersFromSnapshot, resolveOfferSlots, type OfferOption } from "../ai/getOffersTool";
-import { getAriRaw } from "../integrations/cloudbeds/cloudbedsClient";
+import { getCloudbedsAriRaw } from "../integrations/cloudbeds/cloudbedsAriCache";
 import { normalizeAriRawToSnapshot } from "../integrations/cloudbeds/cloudbedsNormalizer";
 
 export type GenerateOffersInput = {
@@ -39,7 +39,7 @@ export type OfferApiOutput =
       slots: OfferIntent;
     };
 
-export const generateOffers = ({ args, currentIntent, now }: GenerateOffersInput): OfferGenerationOutput => {
+export const generateOffers = async ({ args, currentIntent, now }: GenerateOffersInput): Promise<OfferGenerationOutput> => {
   const intent = currentIntent ?? createEmptyOfferIntent();
   const result = resolveOfferSlots(intent, args, now);
 
@@ -47,7 +47,7 @@ export const generateOffers = ({ args, currentIntent, now }: GenerateOffersInput
     return result;
   }
 
-  const ariRaw = getAriRaw({
+  const ariRaw = await getCloudbedsAriRaw({
     propertyId: "demo_property",
     checkIn: result.slots.check_in ?? "",
     checkOut: result.slots.check_out ?? undefined,
@@ -98,8 +98,8 @@ const toApiError = (output: Extract<OfferGenerationOutput, { status: "NEEDS_CLAR
   slots: output.slots,
 });
 
-export const generateOffersApi = ({ args, currentIntent, now }: GenerateOffersInput): OfferApiOutput => {
-  const firstPass = generateOffers({ args, currentIntent, now });
+export const generateOffersApi = async ({ args, currentIntent, now }: GenerateOffersInput): Promise<OfferApiOutput> => {
+  const firstPass = await generateOffers({ args, currentIntent, now });
   if (firstPass.status === "OK") {
     return firstPass;
   }
@@ -108,7 +108,7 @@ export const generateOffersApi = ({ args, currentIntent, now }: GenerateOffersIn
     return toApiError(firstPass);
   }
 
-  const secondPass = generateOffers({
+  const secondPass = await generateOffers({
     args,
     currentIntent: firstPass.slots,
     now,

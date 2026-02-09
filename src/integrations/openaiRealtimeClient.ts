@@ -6,7 +6,7 @@ export type RealtimeClientOptions = {
   instructions: string;
   onAudioDelta: (base64Audio: string) => void;
   onTranscript?: (text: string) => void;
-  onFunctionCall?: (payload: { name: string; callId: string; arguments: unknown }) => void;
+  onFunctionCall?: (payload: { name: string; callId: string; arguments: unknown }) => void | Promise<void>;
   tools?: Array<{
     name: string;
     description: string;
@@ -254,7 +254,7 @@ type EventHandlers = Record<string, (event: RealtimeEvent) => void>;
 const buildEventHandlers = (handlers: {
   onAudioDelta: (audio: string) => void;
   onTranscript?: (text: string) => void;
-  onFunctionCall?: (payload: { name: string; callId: string; arguments: unknown }) => void;
+  onFunctionCall?: (payload: { name: string; callId: string; arguments: unknown }) => void | Promise<void>;
   onSessionUpdated: () => void;
   onError: (event: RealtimeEvent) => void;
 }): EventHandlers => {

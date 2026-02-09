@@ -62,9 +62,9 @@ export const createVoiceOrchestrator = ({
     onTranscript: (text) => {
       logger.info("OpenAI Realtime transcript", { callId: state.callId, text });
     },
-    onFunctionCall: ({ name, callId, arguments: args }) => {
+    onFunctionCall: async ({ name, callId, arguments: args }) => {
       const session = state.callId ? getSession(state.callId) : undefined;
-      const result = dispatchToolCall({ name, args, session });
+      const result = await dispatchToolCall({ name, args, session });
       realtime.sendFunctionCallOutput(callId, result);
       realtime.requestResponse();
     },

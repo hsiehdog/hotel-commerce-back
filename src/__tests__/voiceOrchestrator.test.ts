@@ -36,10 +36,10 @@ describe("voice orchestrator tool gating", () => {
     vi.useRealTimers();
   });
 
-  it("returns clarification for relative dates and then OK after clarification", () => {
+  it("returns clarification for relative dates and then OK after clarification", async () => {
     const { controller } = setup();
 
-    controller.emitFunctionCall("get_offers", {
+    await controller.emitFunctionCall("get_offers", {
       check_in: "tomorrow",
       check_out: "in 2 days",
       adults: 2,
@@ -52,7 +52,7 @@ describe("voice orchestrator tool gating", () => {
     expect(first?.clarificationPrompt).toMatch(/assuming/i);
     expect(controller.responseCreateCount).toBe(1);
 
-    controller.emitFunctionCall("get_offers", {
+    await controller.emitFunctionCall("get_offers", {
       check_in: "2026-02-04",
       check_out: "2026-02-05",
       adults: 2,
@@ -64,7 +64,7 @@ describe("voice orchestrator tool gating", () => {
     expect(second?.clarificationPrompt).toMatch(/confirm/i);
     expect(controller.responseCreateCount).toBe(2);
 
-    controller.emitFunctionCall("get_offers", {
+    await controller.emitFunctionCall("get_offers", {
       check_in: "2026-02-04",
       check_out: "2026-02-05",
       adults: 2,
@@ -76,10 +76,10 @@ describe("voice orchestrator tool gating", () => {
     expect(controller.responseCreateCount).toBe(3);
   });
 
-  it("asks for missing check-out", () => {
+  it("asks for missing check-out", async () => {
     const { controller } = setup();
 
-    controller.emitFunctionCall("get_offers", {
+    await controller.emitFunctionCall("get_offers", {
       check_in: "2026-03-12",
       adults: 2,
       rooms: 1,
@@ -91,10 +91,10 @@ describe("voice orchestrator tool gating", () => {
     expect(output?.clarificationPrompt).toMatch(/check-out date|nights/i);
   });
 
-  it("asks to confirm when check-out is before check-in", () => {
+  it("asks to confirm when check-out is before check-in", async () => {
     const { controller } = setup();
 
-    controller.emitFunctionCall("get_offers", {
+    await controller.emitFunctionCall("get_offers", {
       check_in: "2026-03-14",
       check_out: "2026-03-12",
       adults: 2,
@@ -107,10 +107,10 @@ describe("voice orchestrator tool gating", () => {
     expect(output?.clarificationPrompt).toMatch(/check-out/i);
   });
 
-  it("asks for weekend range clarification", () => {
+  it("asks for weekend range clarification", async () => {
     const { controller } = setup();
 
-    controller.emitFunctionCall("get_offers", {
+    await controller.emitFunctionCall("get_offers", {
       check_in: "this weekend",
       check_out: "next weekend",
       adults: 2,
@@ -123,10 +123,10 @@ describe("voice orchestrator tool gating", () => {
     expect(output?.clarificationPrompt).toMatch(/saturday to monday/i);
   });
 
-  it("handles happy-path get_offers tool call", () => {
+  it("handles happy-path get_offers tool call", async () => {
     const { controller } = setup();
 
-    controller.emitFunctionCall(
+    await controller.emitFunctionCall(
       "get_offers",
       {
         check_in: "2026-02-03",
@@ -141,7 +141,7 @@ describe("voice orchestrator tool gating", () => {
     expect(controller.responseCreateCount).toBe(1);
     expect(lastToolOutput(controller)?.status).toBe("NEEDS_CLARIFICATION");
 
-    controller.emitFunctionCall(
+    await controller.emitFunctionCall(
       "get_offers",
       {
         check_in: "2026-02-03",

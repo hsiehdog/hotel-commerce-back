@@ -2,7 +2,7 @@ import type { RealtimeClientOptions } from "../integrations/openaiRealtimeClient
 import type { RealtimeClient } from "../integrations/openaiRealtimeClient";
 
 export type FakeRealtimeController = {
-  emitFunctionCall: (name: string, args: unknown, callId?: string) => void;
+  emitFunctionCall: (name: string, args: unknown, callId?: string) => Promise<void>;
   emitTranscript: (text: string) => void;
   sentFunctionOutputs: Array<{ callId: string; output: unknown }>;
   responseCreateCount: number;
@@ -22,8 +22,8 @@ export const createFakeRealtimeClientFactory = (): {
     assistantMessages: [],
     inputAudio: [],
     isClosed: false,
-    emitFunctionCall: (name, args, callId = "call_fake") => {
-      options?.onFunctionCall?.({ name, callId, arguments: args });
+    emitFunctionCall: async (name, args, callId = "call_fake") => {
+      await options?.onFunctionCall?.({ name, callId, arguments: args });
     },
     emitTranscript: (text) => {
       options?.onTranscript?.(text);

@@ -18,7 +18,7 @@ const buildIntent = (patch: OfferIntentPatch): OfferIntent => ({
 export const generateOffersForChannel = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { slots, intent } = generateOffersSchema.parse(req.body);
-    const data = generateOffersApi({
+    const data = await generateOffersApi({
       args: slots,
       currentIntent: intent ? buildIntent(intent) : undefined,
     });

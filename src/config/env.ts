@@ -21,6 +21,11 @@ const envSchema = z.object({
   OPENAI_REALTIME_MODEL: z.string().optional(),
   OPENAI_REALTIME_VOICE: z.string().optional(),
   OPENAI_REALTIME_TRANSCRIBE_MODEL: z.string().optional(),
+  REDIS_URL: z
+    .string()
+    .url({ message: "REDIS_URL must be a valid URL" })
+    .optional(),
+  ARI_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(120),
   TWILIO_VOICE_STREAM_URL: z
     .string()
     .url({ message: "TWILIO_VOICE_STREAM_URL must be a valid URL" })

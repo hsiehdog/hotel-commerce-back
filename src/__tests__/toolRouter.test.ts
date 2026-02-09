@@ -3,9 +3,9 @@ import { dispatchToolCall } from "../ai/toolRouter";
 import { createEmptyOfferIntent } from "../ai/offerIntent";
 
 describe("tool router offers", () => {
-  it("returns flexible and non-refundable offers with pricing", () => {
+  it("returns flexible and non-refundable offers with pricing", async () => {
     const session = { intent: createEmptyOfferIntent() };
-    const result = dispatchToolCall({
+    const result = await dispatchToolCall({
       name: "get_offers",
       args: {
         check_in: "2026-02-10",
@@ -23,7 +23,7 @@ describe("tool router offers", () => {
       return;
     }
 
-    const confirmed = dispatchToolCall({
+    const confirmed = await dispatchToolCall({
       name: "get_offers",
       args: {
         check_in: "2026-02-10",
