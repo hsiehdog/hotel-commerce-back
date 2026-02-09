@@ -259,6 +259,15 @@ const buildEventHandlers = (handlers: {
   onError: (event: RealtimeEvent) => void;
 }): EventHandlers => {
   let transcriptBuffer = "";
+  const runFunctionCallHandler = (payload: { name: string; callId: string; arguments: unknown }) => {
+    if (!handlers.onFunctionCall) {
+      return;
+    }
+
+    void Promise.resolve(handlers.onFunctionCall(payload)).catch((error) => {
+      logger.warn("Function call handler failed", { name: payload.name, callId: payload.callId, error });
+    });
+  };
 
   return {
     "session.updated": () => handlers.onSessionUpdated(),
@@ -297,7 +306,7 @@ const buildEventHandlers = (handlers: {
       const item = event.item as { type?: string; name?: string; call_id?: string; arguments?: string };
       if (item?.type === "function_call" && item.name && item.call_id) {
         const parsedArgs = item.arguments ? safeJsonParse(item.arguments) : null;
-        handlers.onFunctionCall?.({ name: item.name, callId: item.call_id, arguments: parsedArgs });
+        runFunctionCallHandler({ name: item.name, callId: item.call_id, arguments: parsedArgs });
       }
     },
     "response.function_call_arguments.done": (event) => {
@@ -305,7 +314,7 @@ const buildEventHandlers = (handlers: {
       const name = typeof event.name === "string" ? event.name : null;
       const args = typeof event.arguments === "string" ? safeJsonParse(event.arguments) : null;
       if (callId && name) {
-        handlers.onFunctionCall?.({ name, callId, arguments: args });
+        runFunctionCallHandler({ name, callId, arguments: args });
       }
     },
   };

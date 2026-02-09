@@ -3,6 +3,7 @@ import type { CloudbedsAriRaw, CloudbedsAriRequest } from "./cloudbedsClient";
 import { getAriRaw } from "./cloudbedsClient";
 import { redisGet, redisSetEx } from "../redisClient";
 import { logger } from "../../utils/logger";
+import { createHash } from "node:crypto";
 
 const CACHE_PREFIX = "cloudbeds:ari:v1";
 
@@ -24,7 +25,8 @@ const buildCacheKey = (request: CloudbedsAriRequest): string => {
     timezone: request.timezone,
   });
 
-  return `${CACHE_PREFIX}:${payload}`;
+  const fingerprint = createHash("sha256").update(payload).digest("hex");
+  return `${CACHE_PREFIX}:${fingerprint}`;
 };
 
 const parseCached = (raw: string): CloudbedsAriRaw | null => {
