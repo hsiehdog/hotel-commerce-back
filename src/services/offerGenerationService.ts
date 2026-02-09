@@ -76,6 +76,15 @@ export const generateOffers = async ({ args, currentIntent, now }: GenerateOffer
   }
 
   const offers = buildOffersFromSnapshot(snapshot, result.slots);
+  if (offers.length === 0) {
+    return {
+      status: "NEEDS_CLARIFICATION",
+      missingFields: [],
+      clarificationPrompt:
+        "I'm having trouble confirming pricing right now. Would you like me to text a booking link or try again in a moment?",
+      slots: result.slots,
+    };
+  }
 
   return {
     status: "OK",

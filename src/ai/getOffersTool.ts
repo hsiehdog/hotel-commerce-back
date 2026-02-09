@@ -1,7 +1,16 @@
 import { OfferIntent } from "./offerIntent";
-import type { AriSnapshot, RatePlanSnapshot, RoomTypeSnapshot } from "./ariSnapshot";
+import type { AriSnapshot, RoomTypeSnapshot } from "./ariSnapshot";
 import { formatDateForSpeech, normalizeCheckOut, normalizeDate } from "./dateResolution";
 import { coerceOfferSlotsInput, type OfferSlotsInput } from "../offers/offerSchema";
+import {
+  canUseSaverPrimaryException,
+  currencyMatchesRequest,
+  resolvePlanPricing,
+  withinPriceDeltaGuardrail,
+  type OfferCandidate,
+  type PriceBasisUsed,
+} from "../services/commerce/commerceEvaluators";
+import { type StrategyMode } from "../services/commerce/commercePolicyV1";
 export type GetOffersToolArgs = OfferSlotsInput;
 
 export type ToolValidationResult =
@@ -24,11 +33,18 @@ export type OfferOption = {
   cancellation_policy: string;
   payment_policy: string;
   price: {
-    currency: "USD";
+    currency: string;
     per_night: number;
     subtotal: number;
     taxes_and_fees: number;
     total: number;
+  };
+  commerce_metadata?: {
+    priceBasisUsed: PriceBasisUsed;
+    degradedPriceControls: boolean;
+    isPrimary: boolean;
+    strategyMode: StrategyMode;
+    saverPrimaryExceptionApplied: boolean;
   };
 };
 
@@ -181,7 +197,11 @@ const mergeIntent = (current: OfferIntent, incoming: GetOffersToolArgs): OfferIn
   parking_needed: typeof incoming.parking_needed === "boolean" ? incoming.parking_needed : current.parking_needed,
 });
 
-export const buildOffersFromSnapshot = (snapshot: AriSnapshot, slots: OfferIntent): OfferOption[] => {
+export const buildOffersFromSnapshot = (
+  snapshot: AriSnapshot,
+  slots: OfferIntent,
+  strategyMode: StrategyMode = "balanced",
+): OfferOption[] => {
   const roomType = snapshot.roomTypes[0];
   if (!roomType) {
     return [];
@@ -190,9 +210,71 @@ export const buildOffersFromSnapshot = (snapshot: AriSnapshot, slots: OfferInten
   const rooms = slots.rooms ?? 1;
   const nights = snapshot.nights;
   const roomDescription = buildRoomDescription(slots, roomType);
+  const requestCurrency = snapshot.currency;
+  const candidates = roomType.ratePlans
+    .map((plan): OfferCandidate | null => {
+      const pricing = resolvePlanPricing(plan);
+      if (!pricing) {
+        return null;
+      }
+      if (!currencyMatchesRequest(snapshot.currency, requestCurrency)) {
+        return null;
+      }
+      return {
+        roomType,
+        plan,
+        currency: snapshot.currency,
+        pricing,
+      };
+    })
+    .filter((candidate): candidate is OfferCandidate => candidate !== null);
 
-  return roomType.ratePlans.slice(0, 2).map((plan) =>
-    buildOfferOption(plan, roomType, snapshot, roomDescription, rooms, nights),
+  if (candidates.length === 0) {
+    return [];
+  }
+
+  const refundableCandidates = candidates.filter((candidate) => candidate.plan.refundability === "REFUNDABLE");
+  const nonRefundableCandidates = candidates.filter((candidate) => candidate.plan.refundability !== "REFUNDABLE");
+  const cheapestRefundable = getCheapestCandidate(refundableCandidates);
+  const cheapestNonRefundable = getCheapestCandidate(nonRefundableCandidates);
+  const cheapestOverall = getCheapestCandidate(candidates);
+
+  if (!cheapestOverall) {
+    return [];
+  }
+
+  let saverPrimaryExceptionApplied = false;
+  let primary = cheapestRefundable ?? cheapestOverall;
+  if (
+    cheapestRefundable &&
+    cheapestNonRefundable &&
+    canUseSaverPrimaryException({
+      roomType,
+      refundableTotal: cheapestRefundable.pricing.total,
+      saverTotal: cheapestNonRefundable.pricing.total,
+      shouldUseStrictPriceControls:
+        !cheapestRefundable.pricing.degradedPriceControls && !cheapestNonRefundable.pricing.degradedPriceControls,
+    })
+  ) {
+    primary = cheapestNonRefundable;
+    saverPrimaryExceptionApplied = true;
+  }
+
+  const strictPriceControls = !primary.pricing.degradedPriceControls;
+  const secondaryCandidates = candidates.filter((candidate) => candidate.plan.ratePlanId !== primary.plan.ratePlanId);
+  const preferredSecondary = getPreferredSecondary(primary, secondaryCandidates, strictPriceControls, strategyMode);
+  const selected = preferredSecondary ? [primary, preferredSecondary] : [primary];
+
+  return selected.map((candidate, index) =>
+    buildOfferOption({
+      candidate,
+      roomDescription,
+      rooms,
+      nights,
+      isPrimary: index === 0,
+      strategyMode,
+      saverPrimaryExceptionApplied,
+    }),
   );
 };
 
@@ -218,11 +300,11 @@ export const buildSlotSpeech = (slots: OfferIntent, offers: OfferOption[]): stri
     `needs_two_beds: ${slots.needs_two_beds ?? "null"}`,
     `budget_cap: ${slots.budget_cap ?? "null"}`,
     `parking_needed: ${slots.parking_needed ?? "null"}`,
-    "Here are two options:",
+    offers.length > 1 ? "Here are two options:" : "Here is the best available option:",
   ];
 
-  for (const offer of offers) {
-    const offerPrefix = offer.rate_type === "flexible" ? "Option one" : "Option two";
+  for (const [index, offer] of offers.entries()) {
+    const offerPrefix = index === 0 ? "Option one" : "Option two";
     const savingsNote =
       offer.rate_type === "non_refundable"
         ? "It's a bit cheaper if you're set on your dates."
@@ -251,18 +333,29 @@ const resolveNights = (slots: OfferIntent): number => {
   return 1;
 };
 
-const buildOfferOption = (
-  plan: RatePlanSnapshot,
-  roomType: RoomTypeSnapshot,
-  snapshot: AriSnapshot,
-  roomDescription: string,
-  rooms: number,
-  nights: number,
-): OfferOption => {
+const buildOfferOption = ({
+  candidate,
+  roomDescription,
+  rooms,
+  nights,
+  isPrimary,
+  strategyMode,
+  saverPrimaryExceptionApplied,
+}: {
+  candidate: OfferCandidate;
+  roomDescription: string;
+  rooms: number;
+  nights: number;
+  isPrimary: boolean;
+  strategyMode: StrategyMode;
+  saverPrimaryExceptionApplied: boolean;
+}): OfferOption => {
+  const plan = candidate.plan;
+  const roomType = candidate.roomType;
   const isRefundable = plan.refundability === "REFUNDABLE";
   const rateType = isRefundable ? "flexible" : "non_refundable";
   const nameSuffix = isRefundable ? "Flexible" : "Pay Now Saver";
-  const perNight = round2(plan.pricing.totalAfterTax / Math.max(1, rooms * nights));
+  const perNight = round2(candidate.pricing.total / Math.max(1, rooms * nights));
 
   return {
     id: plan.ratePlanId,
@@ -274,13 +367,48 @@ const buildOfferOption = (
       : "This one is non-refundable.",
     payment_policy: plan.paymentTiming === "PAY_NOW" ? "Payment is due now." : "You can pay when you arrive.",
     price: {
-      currency: snapshot.currency as "USD",
+      currency: candidate.currency,
       per_night: perNight,
-      subtotal: plan.pricing.totalBeforeTax,
-      taxes_and_fees: plan.pricing.taxesAndFees,
-      total: plan.pricing.totalAfterTax,
+      subtotal: candidate.pricing.subtotal,
+      taxes_and_fees: candidate.pricing.taxesAndFees,
+      total: candidate.pricing.total,
+    },
+    commerce_metadata: {
+      priceBasisUsed: candidate.pricing.basis,
+      degradedPriceControls: candidate.pricing.degradedPriceControls,
+      isPrimary,
+      strategyMode,
+      saverPrimaryExceptionApplied,
     },
   };
+};
+
+const getPreferredSecondary = (
+  primary: OfferCandidate,
+  secondaryCandidates: OfferCandidate[],
+  strictPriceControls: boolean,
+  strategyMode: StrategyMode,
+): OfferCandidate | null => {
+  if (secondaryCandidates.length === 0) {
+    return null;
+  }
+
+  if (!strictPriceControls) {
+    return getCheapestCandidate(secondaryCandidates);
+  }
+
+  const withinGuardrail = secondaryCandidates.filter((candidate) =>
+    withinPriceDeltaGuardrail(strategyMode, primary.pricing.total, candidate.pricing.total),
+  );
+
+  return getCheapestCandidate(withinGuardrail) ?? getCheapestCandidate(secondaryCandidates);
+};
+
+const getCheapestCandidate = (candidates: OfferCandidate[]): OfferCandidate | null => {
+  if (candidates.length === 0) {
+    return null;
+  }
+  return candidates.reduce((lowest, next) => (next.pricing.total < lowest.pricing.total ? next : lowest));
 };
 
 const buildRoomDescription = (slots: OfferIntent, roomType: RoomTypeSnapshot): string => {

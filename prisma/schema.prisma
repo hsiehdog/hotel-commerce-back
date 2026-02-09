@@ -27,6 +27,31 @@ model User {
   @@map("users")
 }
 
+model Property {
+  id              String         @id
+  timezone        String
+  defaultCurrency String         @map("default_currency")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  hours           PropertyHours[]
+
+  @@map("properties")
+}
+
+model PropertyHours {
+  id        String   @id @default(cuid())
+  property  Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId String  @map("property_id")
+  dayOfWeek Int      @map("day_of_week")
+  openTime  String   @map("open_time")
+  closeTime String   @map("close_time")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([propertyId, dayOfWeek])
+  @@map("property_hours")
+}
+
 model AuthSession {
   id        String   @id @default(cuid())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)

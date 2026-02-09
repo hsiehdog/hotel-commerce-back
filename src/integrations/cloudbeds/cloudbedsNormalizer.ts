@@ -15,6 +15,7 @@ export const normalizeAriRawToSnapshot = (raw: CloudbedsAriRaw): AriSnapshot => 
       roomTypeName: roomType.roomTypeName,
       maxOccupancy: roomType.maxOccupancy,
       roomsAvailable: roomType.roomsAvailable,
+      totalInventory: null,
       ratePlans: roomType.ratePlans.map((plan) => ({
         ratePlanId: plan.ratePlanId,
         ratePlanName: plan.ratePlanName,

@@ -12,6 +12,7 @@ export type RoomTypeSnapshot = {
   roomTypeName: string;
   maxOccupancy: number;
   roomsAvailable: number;
+  totalInventory?: number | null;
   ratePlans: RatePlanSnapshot[];
 };
 
@@ -29,9 +30,9 @@ export type RatePlanSnapshot = {
       date: string;
       baseRate: number;
     }[];
-    totalBeforeTax: number;
-    taxesAndFees: number;
-    totalAfterTax: number;
+    totalBeforeTax?: number | null;
+    taxesAndFees?: number | null;
+    totalAfterTax?: number | null;
   };
   restrictions: {
     minLos?: number;

@@ -112,11 +112,11 @@ const buildRoomType = (
   const { checkIn, adults, children = 0, rooms } = request;
   const adjustedBase = adjustBaseRate(roomType.baseRate, request, adults, children);
   const flexibleRates = buildDailyRates(checkIn, nights, adjustedBase);
-  const nonRefundRates = buildDailyRates(
-    checkIn,
-    nights,
-    round2(adjustedBase * (1 - CLOUDBEDS_ARI_ASSUMPTIONS.payNowDiscountRate)),
-  );
+  const payNowDiscountRate =
+    request.accessible_room && roomType.roomTypeId === CLOUDBEDS_ARI_RULES.accessibleRoomTypeId
+      ? 0.35
+      : CLOUDBEDS_ARI_ASSUMPTIONS.payNowDiscountRate;
+  const nonRefundRates = buildDailyRates(checkIn, nights, round2(adjustedBase * (1 - payNowDiscountRate)));
 
   const flexibleTotal = round2(sumRates(flexibleRates) * rooms);
   const nonRefundTotal = round2(sumRates(nonRefundRates) * rooms);

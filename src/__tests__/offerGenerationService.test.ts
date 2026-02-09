@@ -81,4 +81,47 @@ describe("offer generation service", () => {
 
     expect(second.clarificationPrompt).toMatch(/not seeing availability/i);
   });
+
+  it("can promote saver as primary when accessible inventory is compressed and delta is large", async () => {
+    const first = await generateOffers({
+      currentIntent: createEmptyOfferIntent(),
+      args: {
+        check_in: "2026-02-10",
+        check_out: "2026-02-12",
+        adults: 2,
+        rooms: 1,
+        accessible_room: true,
+      },
+    });
+
+    expect(first.status).toBe("NEEDS_CLARIFICATION");
+    if (first.status !== "NEEDS_CLARIFICATION") {
+      return;
+    }
+
+    const second = await generateOffers({
+      currentIntent: first.slots,
+      args: {
+        check_in: "2026-02-10",
+        check_out: "2026-02-12",
+        adults: 2,
+        rooms: 1,
+        accessible_room: true,
+      },
+    });
+
+    expect(second.status).toBe("OK");
+    if (second.status !== "OK") {
+      return;
+    }
+
+    expect(second.offers.length).toBeGreaterThanOrEqual(1);
+    const [primary] = second.offers;
+    if (!primary) {
+      return;
+    }
+
+    expect(primary.rate_type).toBe("non_refundable");
+    expect(primary.commerce_metadata?.saverPrimaryExceptionApplied).toBe(true);
+  });
 });
