@@ -1,3 +1,11 @@
+import {
+  CLOUDBEDS_ARI_ASSUMPTIONS,
+  CLOUDBEDS_ARI_RULES,
+  CLOUDBEDS_BASE_ROOM_TYPES,
+  CLOUDBEDS_RATE_PLAN_SEEDS,
+  type CloudbedsAriSeedRoomType,
+} from "./cloudbedsAriSeedData";
+
 export type CloudbedsAriRequest = {
   propertyId: string;
   checkIn: string;
@@ -54,36 +62,6 @@ export type CloudbedsRatePlanRaw = {
   taxesAndFees: number;
 };
 
-const BASE_ROOM_TYPES: Array<{
-  roomTypeId: string;
-  roomTypeName: string;
-  maxOccupancy: number;
-  roomsAvailable: number;
-  baseRate: number;
-}> = [
-  {
-    roomTypeId: "RT_KING",
-    roomTypeName: "Deluxe King",
-    maxOccupancy: 2,
-    roomsAvailable: 3,
-    baseRate: 175,
-  },
-  {
-    roomTypeId: "RT_QN",
-    roomTypeName: "Double Queen",
-    maxOccupancy: 4,
-    roomsAvailable: 2,
-    baseRate: 190,
-  },
-  {
-    roomTypeId: "RT_ACC_KING",
-    roomTypeName: "Accessible King",
-    maxOccupancy: 2,
-    roomsAvailable: 1,
-    baseRate: 185,
-  },
-];
-
 export const getAriRaw = (request: CloudbedsAriRequest): CloudbedsAriRaw => {
   const nights = resolveNights(request);
   const endDate = request.checkOut ?? addDays(request.checkIn, nights);
@@ -91,16 +69,16 @@ export const getAriRaw = (request: CloudbedsAriRequest): CloudbedsAriRaw => {
   const occupancy = request.adults + children;
   const roomsRequested = request.rooms;
 
-  const roomTypes = BASE_ROOM_TYPES.filter((roomType) => {
-    if (request.accessible_room && roomType.roomTypeId !== "RT_ACC_KING") {
+  const roomTypes = CLOUDBEDS_BASE_ROOM_TYPES.filter((roomType) => {
+    if (request.accessible_room && roomType.roomTypeId !== CLOUDBEDS_ARI_RULES.accessibleRoomTypeId) {
       return false;
     }
 
-    if (!request.accessible_room && roomType.roomTypeId === "RT_ACC_KING") {
+    if (!request.accessible_room && roomType.roomTypeId === CLOUDBEDS_ARI_RULES.accessibleRoomTypeId) {
       return false;
     }
 
-    if (request.needs_two_beds && roomType.roomTypeId !== "RT_QN") {
+    if (request.needs_two_beds && roomType.roomTypeId !== CLOUDBEDS_ARI_RULES.twoBedsRoomTypeId) {
       return false;
     }
 
@@ -121,26 +99,30 @@ export const getAriRaw = (request: CloudbedsAriRequest): CloudbedsAriRaw => {
     startDate: request.checkIn,
     endDate,
     timezone: request.timezone,
-    pricingAssumptions: "Stubbed ARI pricing: base rates by room type, 12% tax, 15% discount for pay-now.",
+    pricingAssumptions: CLOUDBEDS_ARI_ASSUMPTIONS.pricingAssumptions,
     roomTypes,
   };
 };
 
 const buildRoomType = (
-  roomType: (typeof BASE_ROOM_TYPES)[number],
+  roomType: CloudbedsAriSeedRoomType,
   request: CloudbedsAriRequest,
   nights: number,
 ): CloudbedsRoomTypeRaw => {
   const { checkIn, adults, children = 0, rooms } = request;
   const adjustedBase = adjustBaseRate(roomType.baseRate, request, adults, children);
   const flexibleRates = buildDailyRates(checkIn, nights, adjustedBase);
-  const nonRefundRates = buildDailyRates(checkIn, nights, round2(adjustedBase * 0.85));
+  const nonRefundRates = buildDailyRates(
+    checkIn,
+    nights,
+    round2(adjustedBase * (1 - CLOUDBEDS_ARI_ASSUMPTIONS.payNowDiscountRate)),
+  );
 
   const flexibleTotal = round2(sumRates(flexibleRates) * rooms);
   const nonRefundTotal = round2(sumRates(nonRefundRates) * rooms);
 
-  const flexibleTaxes = round2(flexibleTotal * 0.12);
-  const nonRefundTaxes = round2(nonRefundTotal * 0.12);
+  const flexibleTaxes = round2(flexibleTotal * CLOUDBEDS_ARI_ASSUMPTIONS.taxRate);
+  const nonRefundTaxes = round2(nonRefundTotal * CLOUDBEDS_ARI_ASSUMPTIONS.taxRate);
 
   return {
     roomTypeId: roomType.roomTypeId,
@@ -149,19 +131,19 @@ const buildRoomType = (
     roomsAvailable: roomType.roomsAvailable,
     ratePlans: [
       {
-        ratePlanId: "RP_FLEX",
-        ratePlanName: "Flexible",
-        refundability: "REFUNDABLE",
-        paymentTiming: "PAY_AT_HOTEL",
+        ratePlanId: CLOUDBEDS_RATE_PLAN_SEEDS.flexible.ratePlanId,
+        ratePlanName: CLOUDBEDS_RATE_PLAN_SEEDS.flexible.ratePlanName,
+        refundability: CLOUDBEDS_RATE_PLAN_SEEDS.flexible.refundability,
+        paymentTiming: CLOUDBEDS_RATE_PLAN_SEEDS.flexible.paymentTiming,
         cancellationPolicy: {
-          type: "FREE_CANCEL",
-          freeCancelUntil: addDays(checkIn, -2),
+          type: CLOUDBEDS_RATE_PLAN_SEEDS.flexible.cancellationType,
+          freeCancelUntil: addDays(checkIn, -CLOUDBEDS_ARI_ASSUMPTIONS.freeCancellationWindowDays),
         },
         detailedRates: flexibleRates.map((rate) => ({
           date: rate.date,
           rate: rate.rate,
           available: true,
-          minLos: 1,
+          minLos: CLOUDBEDS_ARI_ASSUMPTIONS.minLengthOfStay,
           cta: false,
           ctd: false,
         })),
@@ -169,18 +151,18 @@ const buildRoomType = (
         taxesAndFees: flexibleTaxes,
       },
       {
-        ratePlanId: "RP_PAYNOW",
-        ratePlanName: "Pay Now Saver",
-        refundability: "NON_REFUNDABLE",
-        paymentTiming: "PAY_NOW",
+        ratePlanId: CLOUDBEDS_RATE_PLAN_SEEDS.payNow.ratePlanId,
+        ratePlanName: CLOUDBEDS_RATE_PLAN_SEEDS.payNow.ratePlanName,
+        refundability: CLOUDBEDS_RATE_PLAN_SEEDS.payNow.refundability,
+        paymentTiming: CLOUDBEDS_RATE_PLAN_SEEDS.payNow.paymentTiming,
         cancellationPolicy: {
-          type: "NO_REFUND",
+          type: CLOUDBEDS_RATE_PLAN_SEEDS.payNow.cancellationType,
         },
         detailedRates: nonRefundRates.map((rate) => ({
           date: rate.date,
           rate: rate.rate,
           available: true,
-          minLos: 1,
+          minLos: CLOUDBEDS_ARI_ASSUMPTIONS.minLengthOfStay,
           cta: false,
           ctd: false,
         })),
@@ -195,7 +177,10 @@ const buildDailyRates = (checkIn: string, nights: number, baseRate: number): Arr
   const rates: Array<{ date: string; rate: number }> = [];
   for (let i = 0; i < nights; i += 1) {
     const date = addDays(checkIn, i);
-    rates.push({ date, rate: round2(baseRate + i * 5) });
+    rates.push({
+      date,
+      rate: round2(baseRate + i * CLOUDBEDS_ARI_ASSUMPTIONS.nightlyRateIncrement),
+    });
   }
   return rates;
 };
@@ -208,27 +193,33 @@ const adjustBaseRate = (
 ): number => {
   let rate = baseRate;
 
-  if (adults > 2) {
-    rate += (adults - 2) * 20;
+  if (adults > CLOUDBEDS_ARI_ASSUMPTIONS.includedAdultCount) {
+    rate += (adults - CLOUDBEDS_ARI_ASSUMPTIONS.includedAdultCount) * CLOUDBEDS_ARI_ASSUMPTIONS.extraAdultSurcharge;
   }
 
   if (children > 0) {
-    rate += children * 10;
+    rate += children * CLOUDBEDS_ARI_ASSUMPTIONS.childSurcharge;
   }
 
   if (request.pet_friendly) {
-    rate += 25;
+    rate += CLOUDBEDS_ARI_ASSUMPTIONS.petFriendlySurcharge;
   }
 
   if (request.parking_needed) {
-    rate += 15;
+    rate += CLOUDBEDS_ARI_ASSUMPTIONS.parkingSurcharge;
   }
 
   if (typeof request.budget_cap === "number" && request.budget_cap > 0) {
-    rate = Math.min(rate, Math.max(80, Math.floor(request.budget_cap * 0.95)));
+    rate = Math.min(
+      rate,
+      Math.max(
+        CLOUDBEDS_ARI_ASSUMPTIONS.minNightlyRate,
+        Math.floor(request.budget_cap * CLOUDBEDS_ARI_ASSUMPTIONS.budgetCapMultiplier),
+      ),
+    );
   }
 
-  return Math.max(80, round2(rate));
+  return Math.max(CLOUDBEDS_ARI_ASSUMPTIONS.minNightlyRate, round2(rate));
 };
 
 const resolveNights = (request: CloudbedsAriRequest): number => {
@@ -240,14 +231,14 @@ const resolveNights = (request: CloudbedsAriRequest): number => {
     return diffDays(request.checkIn, request.checkOut);
   }
 
-  return 1;
+  return CLOUDBEDS_ARI_ASSUMPTIONS.defaultNights;
 };
 
 const diffDays = (start: string, end: string): number => {
   const startDate = new Date(`${start}T00:00:00Z`);
   const endDate = new Date(`${end}T00:00:00Z`);
   const diffMs = endDate.getTime() - startDate.getTime();
-  return Math.max(1, Math.round(diffMs / (24 * 60 * 60 * 1000)));
+  return Math.max(CLOUDBEDS_ARI_ASSUMPTIONS.defaultNights, Math.round(diffMs / (24 * 60 * 60 * 1000)));
 };
 
 const addDays = (date: string, days: number): string => {
