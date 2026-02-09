@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createEmptyOfferIntent, type OfferIntent } from "../ai/offerIntent";
 import { ApiError } from "../middleware/errorHandler";
 import { offerIntentPatchSchema, offerSlotsInputSchema, type OfferIntentPatch } from "../offers/offerSchema";
-import { generateOffers } from "../services/offerGenerationService";
+import { generateOffersApi } from "../services/offerGenerationService";
 
 const generateOffersSchema = z.object({
   slots: offerSlotsInputSchema.default({}),
@@ -18,10 +18,15 @@ const buildIntent = (patch: OfferIntentPatch): OfferIntent => ({
 export const generateOffersForChannel = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { slots, intent } = generateOffersSchema.parse(req.body);
-    const data = generateOffers({
+    const data = generateOffersApi({
       args: slots,
       currentIntent: intent ? buildIntent(intent) : undefined,
     });
+
+    if (data.status === "ERROR") {
+      next(new ApiError(data.message, 422, { missingFields: data.missingFields, slots: data.slots }));
+      return;
+    }
 
     res.json({ data });
   } catch (error) {

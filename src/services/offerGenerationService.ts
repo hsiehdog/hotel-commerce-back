@@ -24,6 +24,21 @@ export type OfferGenerationOutput =
       slots: OfferIntent;
     };
 
+export type OfferApiOutput =
+  | {
+      status: "OK";
+      slots: OfferIntent;
+      offers: OfferOption[];
+      message: string;
+      speech: string;
+    }
+  | {
+      status: "ERROR";
+      message: string;
+      missingFields: string[];
+      slots: OfferIntent;
+    };
+
 export const generateOffers = ({ args, currentIntent, now }: GenerateOffersInput): OfferGenerationOutput => {
   const intent = currentIntent ?? createEmptyOfferIntent();
   const result = resolveOfferSlots(intent, args, now);
@@ -69,4 +84,39 @@ export const generateOffers = ({ args, currentIntent, now }: GenerateOffersInput
     message: "Get offers tool will be called now with the following slots",
     speech: buildSlotSpeech(result.slots, offers),
   };
+};
+
+const isConfirmationOnlyClarification = (output: OfferGenerationOutput): boolean =>
+  output.status === "NEEDS_CLARIFICATION" &&
+  output.missingFields.length === 0 &&
+  output.slots.confirmation_pending;
+
+const toApiError = (output: Extract<OfferGenerationOutput, { status: "NEEDS_CLARIFICATION" }>): OfferApiOutput => ({
+  status: "ERROR",
+  message: output.clarificationPrompt,
+  missingFields: output.missingFields,
+  slots: output.slots,
+});
+
+export const generateOffersApi = ({ args, currentIntent, now }: GenerateOffersInput): OfferApiOutput => {
+  const firstPass = generateOffers({ args, currentIntent, now });
+  if (firstPass.status === "OK") {
+    return firstPass;
+  }
+
+  if (!isConfirmationOnlyClarification(firstPass)) {
+    return toApiError(firstPass);
+  }
+
+  const secondPass = generateOffers({
+    args,
+    currentIntent: firstPass.slots,
+    now,
+  });
+
+  if (secondPass.status === "OK") {
+    return secondPass;
+  }
+
+  return toApiError(secondPass);
 };

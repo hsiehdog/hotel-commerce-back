@@ -66,7 +66,29 @@ describe("offers endpoint contract", () => {
     const json = (res as unknown as { json: ReturnType<typeof vi.fn> }).json;
     expect(json).toHaveBeenCalledTimes(1);
     const payload = json.mock.calls[0]?.[0] as { data?: { status?: string; slots?: { check_in?: string | null } } };
-    expect(payload.data?.status).toBe("NEEDS_CLARIFICATION");
+    expect(payload.data?.status).toBe("OK");
     expect(payload.data?.slots?.check_in).toBe("2026-02-10");
+  });
+
+  it("passes ApiError(422) when required slot data is missing", async () => {
+    const req = {
+      body: {
+        slots: {
+          check_in: "2026-03-12",
+          adults: 2,
+          rooms: 1,
+        },
+      },
+    } as Parameters<typeof generateOffersForChannel>[0];
+    const res = createResponse() as unknown as Parameters<typeof generateOffersForChannel>[1];
+    const next = vi.fn();
+
+    await generateOffersForChannel(req, res, next as Parameters<typeof generateOffersForChannel>[2]);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    const error = next.mock.calls[0]?.[0];
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).statusCode).toBe(422);
+    expect((error as ApiError).message).toMatch(/check-out date|nights/i);
   });
 });
