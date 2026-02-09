@@ -51,7 +51,3 @@ const diffDays = (start: string, end: string): number => {
 };
 
 const round2 = (value: number): number => Math.round(value * 100) / 100;
-
-export default {
-  normalizeAriRawToSnapshot,
-};

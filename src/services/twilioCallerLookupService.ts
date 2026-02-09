@@ -21,7 +21,3 @@ export const logIncomingCallerLineType = ({ from }: IncomingCallerLookupInput): 
     })();
   });
 };
-
-export default {
-  logIncomingCallerLineType,
-};

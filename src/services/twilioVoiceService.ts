@@ -36,7 +36,3 @@ export const getIncomingVoiceTwiML = (): string => {
     greeting: env.TWILIO_VOICE_GREETING ?? null,
   });
 };
-
-export default {
-  getIncomingVoiceTwiML,
-};

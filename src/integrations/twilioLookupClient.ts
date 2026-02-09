@@ -40,7 +40,3 @@ export const fetchLineTypeForNumber = async (phoneNumber: string): Promise<strin
   const payload = (await response.json()) as TwilioLookupResponse;
   return payload.line_type_intelligence?.type ?? null;
 };
-
-export default {
-  fetchLineTypeForNumber,
-};

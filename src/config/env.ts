@@ -18,7 +18,6 @@ const envSchema = z.object({
     .optional(),
   TRUSTED_ORIGINS: z.string().optional(),
   OPENAI_API_KEY: z.string().min(1, "OPENAI_API_KEY is required"),
-  AI_MODEL: z.string().default("gpt-5-mini"),
   OPENAI_REALTIME_MODEL: z.string().optional(),
   OPENAI_REALTIME_VOICE: z.string().optional(),
   OPENAI_REALTIME_TRANSCRIBE_MODEL: z.string().optional(),

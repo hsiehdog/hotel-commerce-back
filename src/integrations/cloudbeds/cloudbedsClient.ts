@@ -260,7 +260,3 @@ const sumRates = (rates: Array<{ date: string; rate: number }>): number =>
   rates.reduce((total, entry) => total + entry.rate, 0);
 
 const round2 = (value: number): number => Math.round(value * 100) / 100;
-
-export default {
-  getAriRaw,
-};
