@@ -1,6 +1,5 @@
 import { NextFunction, Request, Response as ExpressResponse } from "express";
 import { z } from "zod";
-import { prisma } from "../lib/prisma";
 import { auth } from "../lib/auth";
 import { appBaseUrl } from "../config/env";
 import { headersFromExpress } from "../utils/http";
@@ -47,23 +46,6 @@ export const getProfile = async (req: Request, res: ExpressResponse, next: NextF
     res.json({
       user: req.user,
     });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const listSessions = async (req: Request, res: ExpressResponse, next: NextFunction): Promise<void> => {
-  try {
-    const user = requireUser(req, res);
-    if (!user) return;
-
-    const sessions = await prisma.aiSession.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-    });
-
-    res.json({ sessions });
   } catch (error) {
     next(error);
   }
