@@ -273,6 +273,83 @@ curl -sS "$BASE_URL/offers/generate" \
 
 Expected: `422` with a clarification message about availability.
 
+4) Stubbed `getRatePlans` scenario: Saver-primary exception:
+
+```bash
+curl -sS "$BASE_URL/offers/generate" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: $SESSION_COOKIE" \
+  -d '{
+    "slots": {
+      "check_in": "2026-02-10",
+      "check_out": "2026-02-12",
+      "adults": 2,
+      "rooms": 1,
+      "accessible_room": true,
+      "stub_scenario": "saver_primary_accessible"
+    }
+  }' | jq '.data.offers[0].commerce_metadata'
+```
+
+Expected: `isPrimary=true`, `saverPrimaryExceptionApplied=true`, and first offer tends to be non-refundable.
+
+5) Stubbed `getRatePlans` scenario: currency mismatch handling:
+
+```bash
+curl -sS "$BASE_URL/offers/generate" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: $SESSION_COOKIE" \
+  -d '{
+    "slots": {
+      "check_in": "2026-02-10",
+      "check_out": "2026-02-12",
+      "adults": 2,
+      "rooms": 1,
+      "stub_scenario": "currency_mismatch"
+    }
+  }' | jq '.data.offers | length'
+```
+
+Expected: one valid offer (mismatched-currency candidate dropped).
+
+6) Stubbed `getRatePlans` scenario: before-tax fallback basis:
+
+```bash
+curl -sS "$BASE_URL/offers/generate" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: $SESSION_COOKIE" \
+  -d '{
+    "slots": {
+      "check_in": "2026-02-10",
+      "check_out": "2026-02-12",
+      "adults": 2,
+      "rooms": 1,
+      "stub_scenario": "before_tax_only"
+    }
+  }' | jq '.data.offers[0].commerce_metadata'
+```
+
+Expected: `priceBasisUsed="beforeTax"` and `degradedPriceControls=true`.
+
+7) Stubbed `getRatePlans` scenario: invalid pricing fail-closed:
+
+```bash
+curl -i -sS "$BASE_URL/offers/generate" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: $SESSION_COOKIE" \
+  -d '{
+    "slots": {
+      "check_in": "2026-02-10",
+      "check_out": "2026-02-12",
+      "adults": 2,
+      "rooms": 1,
+      "stub_scenario": "invalid_pricing"
+    }
+  }'
+```
+
+Expected: `422` with pricing confirmation fallback message.
+
 ## Next Steps
 
 - Define additional Prisma models if your AI workflows need metadata (projects, datasets, etc.)

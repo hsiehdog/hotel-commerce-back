@@ -195,6 +195,7 @@ const mergeIntent = (current: OfferIntent, incoming: GetOffersToolArgs): OfferIn
   needs_two_beds: typeof incoming.needs_two_beds === "boolean" ? incoming.needs_two_beds : current.needs_two_beds,
   budget_cap: typeof incoming.budget_cap === "number" ? incoming.budget_cap : current.budget_cap,
   parking_needed: typeof incoming.parking_needed === "boolean" ? incoming.parking_needed : current.parking_needed,
+  stub_scenario: typeof incoming.stub_scenario === "string" ? incoming.stub_scenario : current.stub_scenario,
 });
 
 export const buildOffersFromSnapshot = (
@@ -217,13 +218,14 @@ export const buildOffersFromSnapshot = (
       if (!pricing) {
         return null;
       }
-      if (!currencyMatchesRequest(snapshot.currency, requestCurrency)) {
+      const candidateCurrency = plan.currency ?? snapshot.currency;
+      if (!currencyMatchesRequest(candidateCurrency, requestCurrency)) {
         return null;
       }
       return {
         roomType,
         plan,
-        currency: snapshot.currency,
+        currency: candidateCurrency,
         pricing,
       };
     })

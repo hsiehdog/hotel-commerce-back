@@ -19,6 +19,7 @@ export type RoomTypeSnapshot = {
 export type RatePlanSnapshot = {
   ratePlanId: string;
   ratePlanName: string;
+  currency?: string | null;
   refundability: "REFUNDABLE" | "NON_REFUNDABLE" | "PARTIAL";
   paymentTiming: "PAY_NOW" | "PAY_LATER";
   cancellationPolicy: {

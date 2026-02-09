@@ -60,6 +60,7 @@ export const generateOffers = async ({ args, currentIntent, now }: GenerateOffer
     needs_two_beds: result.slots.needs_two_beds ?? undefined,
     parking_needed: result.slots.parking_needed ?? undefined,
     budget_cap: result.slots.budget_cap ?? undefined,
+    stubScenario: result.slots.stub_scenario ?? undefined,
     currency: "USD",
     timezone: result.slots.property_timezone,
   });

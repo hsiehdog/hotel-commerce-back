@@ -15,12 +15,13 @@ export const normalizeAriRawToSnapshot = (raw: CloudbedsAriRaw): AriSnapshot => 
       roomTypeName: roomType.roomTypeName,
       maxOccupancy: roomType.maxOccupancy,
       roomsAvailable: roomType.roomsAvailable,
-      totalInventory: null,
+      totalInventory: roomType.totalInventory ?? null,
       ratePlans: roomType.ratePlans.map((plan) => ({
         ratePlanId: plan.ratePlanId,
         ratePlanName: plan.ratePlanName,
         refundability: plan.refundability,
         paymentTiming: plan.paymentTiming === "PAY_NOW" ? "PAY_NOW" : "PAY_LATER",
+        currency: plan.currency ?? raw.currency,
         cancellationPolicy: {
           freeCancelUntil: plan.cancellationPolicy.freeCancelUntil,
           penaltyDescription: plan.cancellationPolicy.type === "NO_REFUND" ? "Non-refundable." : undefined,
@@ -30,9 +31,14 @@ export const normalizeAriRawToSnapshot = (raw: CloudbedsAriRaw): AriSnapshot => 
             date: rate.date,
             baseRate: rate.rate,
           })),
-          totalBeforeTax: plan.totalRate,
-          taxesAndFees: plan.taxesAndFees,
-          totalAfterTax: round2(plan.totalRate + plan.taxesAndFees),
+          totalBeforeTax: plan.totalRate ?? null,
+          taxesAndFees: plan.taxesAndFees ?? null,
+          totalAfterTax:
+            typeof plan.totalAfterTax === "number"
+              ? round2(plan.totalAfterTax)
+              : typeof plan.totalRate === "number" && typeof plan.taxesAndFees === "number"
+                ? round2(plan.totalRate + plan.taxesAndFees)
+                : null,
         },
         restrictions: {
           minLos: plan.detailedRates.reduce((max, rate) => Math.max(max, rate.minLos), 1),

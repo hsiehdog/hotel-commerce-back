@@ -52,6 +52,7 @@ export type OfferSlots = {
   needs_two_beds: boolean;
   budget_cap: number;
   parking_needed: boolean;
+  stub_scenario: string;
 };
 
 export type OfferSlotsInput = Partial<OfferSlots>;
@@ -68,6 +69,7 @@ export const offerSlotsInputSchema = z.object({
   needs_two_beds: z.boolean().optional(),
   budget_cap: z.number().positive().optional(),
   parking_needed: z.boolean().optional(),
+  stub_scenario: z.string().optional(),
 });
 
 export const offerIntentPatchSchema = z.object({
@@ -82,6 +84,7 @@ export const offerIntentPatchSchema = z.object({
   needs_two_beds: z.boolean().nullable().optional(),
   budget_cap: z.number().positive().nullable().optional(),
   parking_needed: z.boolean().nullable().optional(),
+  stub_scenario: z.string().nullable().optional(),
   language: z.string().nullable().optional(),
   property_timezone: z.string().optional(),
   confirmation_pending: z.boolean().optional(),
@@ -108,5 +111,6 @@ export const coerceOfferSlotsInput = (raw: unknown): OfferSlotsInput => {
     needs_two_beds: parseBoolean(args.needs_two_beds),
     budget_cap: parseNumber(args.budget_cap),
     parking_needed: parseBoolean(args.parking_needed),
+    stub_scenario: parseString(args.stub_scenario),
   };
 };
