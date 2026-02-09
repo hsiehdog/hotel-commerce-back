@@ -1,15 +1,8 @@
+import type { OfferSlots } from "../offers/offerSchema";
+
 export type OfferIntent = {
-  check_in: string | null;
-  check_out: string | null;
-  nights: number | null;
-  adults: number | null;
-  rooms: number | null;
-  children: number | null;
-  pet_friendly: boolean | null;
-  accessible_room: boolean | null;
-  needs_two_beds: boolean | null;
-  budget_cap: number | null;
-  parking_needed: boolean | null;
+  [K in keyof OfferSlots]: OfferSlots[K] | null;
+} & {
   language: string | null;
   property_timezone: string;
   confirmation_pending: boolean;

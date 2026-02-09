@@ -1,20 +1,8 @@
 import { OfferIntent } from "./offerIntent";
 import type { AriSnapshot, RatePlanSnapshot, RoomTypeSnapshot } from "./ariSnapshot";
 import { formatDateForSpeech, normalizeCheckOut, normalizeDate } from "./dateResolution";
-
-export type GetOffersToolArgs = Partial<{
-  check_in: string;
-  check_out: string;
-  nights: number;
-  adults: number;
-  rooms: number;
-  children: number;
-  pet_friendly: boolean;
-  accessible_room: boolean;
-  needs_two_beds: boolean;
-  budget_cap: number;
-  parking_needed: boolean;
-}>;
+import { coerceOfferSlotsInput, type OfferSlotsInput } from "../offers/offerSchema";
+export type GetOffersToolArgs = OfferSlotsInput;
 
 export type ToolValidationResult =
   | {
@@ -174,41 +162,8 @@ const applyDefaultsAndMissing = (intent: OfferIntent): { intent: OfferIntent; mi
 };
 
 
-const toPositiveInt = (value: unknown): number | undefined => {
-  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
-    return Math.floor(value);
-  }
-
-  if (typeof value === "string") {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed) && parsed > 0) {
-      return Math.floor(parsed);
-    }
-  }
-
-  return undefined;
-};
-
 const coerceArgs = (rawArgs: unknown): GetOffersToolArgs => {
-  if (!rawArgs || typeof rawArgs !== "object") {
-    return {};
-  }
-
-  const args = rawArgs as Record<string, unknown>;
-
-  return {
-    check_in: typeof args.check_in === "string" ? args.check_in : undefined,
-    check_out: typeof args.check_out === "string" ? args.check_out : undefined,
-    nights: toPositiveInt(args.nights),
-    adults: toPositiveInt(args.adults),
-    rooms: toPositiveInt(args.rooms),
-    children: typeof args.children === "number" ? Math.max(0, Math.floor(args.children)) : undefined,
-    pet_friendly: typeof args.pet_friendly === "boolean" ? args.pet_friendly : undefined,
-    accessible_room: typeof args.accessible_room === "boolean" ? args.accessible_room : undefined,
-    needs_two_beds: typeof args.needs_two_beds === "boolean" ? args.needs_two_beds : undefined,
-    budget_cap: typeof args.budget_cap === "number" ? args.budget_cap : undefined,
-    parking_needed: typeof args.parking_needed === "boolean" ? args.parking_needed : undefined,
-  };
+  return coerceOfferSlotsInput(rawArgs);
 };
 
 const mergeIntent = (current: OfferIntent, incoming: GetOffersToolArgs): OfferIntent => ({
