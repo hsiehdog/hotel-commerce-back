@@ -130,6 +130,54 @@ Core policy is deterministic and versioned.
 - Saver-primary exception only under locked compression + delta thresholds
 - Fallback clarification when pricing is not trustworthy
 
+### Default Decision Logic
+
+The engine currently makes these default decisions for each `/offers/generate` request:
+
+1. Input normalization
+- Accepts either:
+  - wrapped request: `{ slots, intent? }`
+  - top-level commerce request: `{ property_id, check_in, check_out, adults, rooms, ... }`
+- In wrapped mode, `slots.preferences` (for example `late_arrival`) is also read and mapped into commerce behavior.
+
+2. Required slot validation and confirmation
+- Validates/normalizes dates and required occupancy slots.
+- Uses clarification flow when required data is missing or ambiguous.
+
+3. Candidate generation and eligibility filtering
+- Pulls ARI/getRatePlans stub data.
+- Filters out candidates that fail restrictions (`cta`, `ctd`, `minLos`, `maxLos`).
+- Rejects candidates with invalid pricing basis.
+- Rejects candidates with currency mismatch against request currency (no FX in v1).
+
+4. Pricing basis fallback
+- Candidate pricing basis priority:
+  1. `totalAfterTax`
+  2. `totalBeforeTax + taxesAndFees`
+  3. `totalBeforeTax` (degraded mode)
+  4. invalid candidate (fail closed if none remain)
+
+5. Primary/secondary selection defaults
+- Defaults to refundable primary (`SAFE`) where available.
+- Picks secondary contrast (`SAVER`) when available and policy-safe.
+- Applies strategy-based price-delta guardrails for pairing (`balanced` default).
+
+6. Saver-primary exception
+- Non-refundable can become primary only when compression + delta thresholds are met.
+- When saver-primary is selected and scarcity is factual (`roomsAvailable <= 2`), structured urgency is returned.
+
+7. Enhancements (merchandising layer)
+- Enhancements are attached to the primary offer only (not a 3rd offer):
+  - Family/space signals -> breakfast (`availability: info`)
+  - Late-arrival signal -> late checkout (`availability: request`, with disclosure)
+
+8. Fallback behavior when <2 offers remain
+- If one offer remains, returns one offer plus structured fallback action.
+- If no trustworthy offer remains, returns safe clarification error (`422`) instead of fabricating pricing.
+
+9. Explainability fields in response
+- Returns `priceBasisUsed`, `presentationHints`, and `decisionTrace` so selection is auditable.
+
 ### Response Contract
 
 `/offers/generate` returns a commerce-oriented contract:
