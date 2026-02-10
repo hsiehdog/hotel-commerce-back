@@ -30,6 +30,15 @@ const commerceRequestSchema = z.object({
   stub_scenario: z.string().optional(),
 });
 
+const wrappedSlotPreferencesSchema = z.object({
+  preferences: z
+    .object({
+      needs_space: z.boolean().optional(),
+      late_arrival: z.boolean().optional(),
+    })
+    .optional(),
+});
+
 const buildIntent = (patch: OfferIntentPatch): OfferIntent => ({
   ...createEmptyOfferIntent(),
   ...patch,
@@ -77,9 +86,12 @@ type NormalizedOffersRequest = {
 const normalizeOffersRequest = (body: unknown): NormalizedOffersRequest => {
   if (body && typeof body === "object" && "slots" in (body as Record<string, unknown>)) {
     const wrapped = generateOffersSchema.parse(body);
+    const rawSlots = (body as { slots?: unknown }).slots;
+    const wrappedExtras = wrappedSlotPreferencesSchema.safeParse(rawSlots);
     return {
       slots: wrapped.slots,
       intent: wrapped.intent,
+      preferences: wrappedExtras.success ? wrappedExtras.data.preferences : undefined,
     };
   }
 

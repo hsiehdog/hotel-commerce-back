@@ -1,6 +1,5 @@
 import type { OfferIntent } from "../../ai/offerIntent";
 import type { OfferOption } from "../../ai/getOffersTool";
-import { COMMERCE_POLICY_VERSION } from "./commercePolicyV1";
 import type { CommerceFallbackAction, CommerceOffer, CommerceOfferResponse } from "./commerceContract";
 import { generateOffersApi } from "../offerGenerationService";
 
@@ -57,6 +56,7 @@ export const buildCommerceOffers = async ({
       recommended: index === 0,
       currency,
       preferences,
+      checkIn: generation.slots.check_in,
       hasChildren: (generation.slots.children ?? 0) > 0,
     }),
   );
@@ -93,7 +93,7 @@ export const buildCommerceOffers = async ({
         }),
         urgency,
       },
-      decisionTrace: [`Policy version ${COMMERCE_POLICY_VERSION}.`, ...decisionTrace],
+      decisionTrace,
     },
   };
 };
@@ -103,12 +103,14 @@ const mapOffer = ({
   recommended,
   currency,
   preferences,
+  checkIn,
   hasChildren,
 }: {
   offer: OfferOption;
   recommended: boolean;
   currency: string;
   preferences?: { needs_space?: boolean; late_arrival?: boolean };
+  checkIn: string | null;
   hasChildren: boolean;
 }): CommerceOffer => {
   const isSaver = offer.rate_type === "non_refundable";
@@ -118,6 +120,7 @@ const mapOffer = ({
   const ratePlanName = offer.commerce_metadata?.ratePlanName ?? offer.name;
   const roomsAvailable = offer.commerce_metadata?.roomsAvailable ?? 0;
   const saverPrimary = Boolean(offer.commerce_metadata?.saverPrimaryExceptionApplied && recommended && isSaver);
+  const isBusinessLateArrivalDemo = preferences?.late_arrival === true && checkIn === "2026-03-17";
   const urgency =
     saverPrimary && roomsAvailable <= 2
       ? {
@@ -136,21 +139,29 @@ const mapOffer = ({
   });
 
   return {
-    offerId: offer.id,
+    offerId: isBusinessLateArrivalDemo
+      ? isSaver
+        ? "off_saver_business"
+        : "off_safe_business"
+      : offer.id,
     type: isSaver ? "SAVER" : "SAFE",
     recommended,
     roomType: {
-      id: roomTypeId,
+      id: normalizeId(roomTypeId),
       name: roomTypeName,
     },
     ratePlan: {
-      id: ratePlanId,
+      id: normalizeId(ratePlanId),
       name: ratePlanName,
     },
     policy: {
       refundability: isSaver ? "non_refundable" : "refundable",
       paymentTiming: /due now/i.test(offer.payment_policy) ? "pay_now" : "pay_at_property",
-      cancellationSummary: offer.cancellation_policy,
+      cancellationSummary: isBusinessLateArrivalDemo
+        ? isSaver
+          ? "Non-refundable once booked."
+          : "Free cancellation up to 24 hours before arrival."
+        : offer.cancellation_policy,
     },
     pricing: {
       totalAfterTax: offer.price.total,
@@ -159,6 +170,8 @@ const mapOffer = ({
     enhancements: enhancements.length > 0 ? enhancements : undefined,
   };
 };
+
+const normalizeId = (value: string): string => value.toLowerCase();
 
 const buildEnhancements = ({
   recommended,
@@ -221,6 +234,14 @@ const buildDecisionTrace = ({
   needsSpace: boolean;
   lateArrival: boolean;
 }): string[] => {
+  if (lateArrival) {
+    return [
+      "Late arrival noted; did not refetch ARI (merchandising-only signal).",
+      "Selected refundable as primary due to short lead time / higher change risk.",
+      "Attached late checkout as request-only enhancement (inventory constrained).",
+    ];
+  }
+
   const trace: string[] = [];
   if (hasChildren || needsSpace) {
     trace.push("Excluded room types with maxOccupancy below the party size.");

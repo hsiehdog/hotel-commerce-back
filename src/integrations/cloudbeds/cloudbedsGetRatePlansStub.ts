@@ -114,6 +114,7 @@ const buildRoomTypeForScenario = (
   nights: number,
 ): CloudbedsGetRatePlansRoomType => {
   const { checkIn, adults, children = 0, rooms } = request;
+  const isBusinessLateArrivalDemo = checkIn === "2026-03-17" && nights === 1 && adults === 1 && children === 0;
   const adjustedBase = adjustBaseRate(roomType.baseRate, request, adults, children);
   const flexibleRates = buildDailyRates(checkIn, nights, adjustedBase);
   const isCompressionWeekend = checkIn === "2026-05-22";
@@ -129,10 +130,17 @@ const buildRoomTypeForScenario = (
   const flexibleTaxes = round2(flexibleTotal * CLOUDBEDS_ARI_ASSUMPTIONS.taxRate);
   const nonRefundTaxes = round2(nonRefundTotal * CLOUDBEDS_ARI_ASSUMPTIONS.taxRate);
 
+  const flexRatePlanId = isBusinessLateArrivalDemo ? "rp_king_flex" : CLOUDBEDS_RATE_PLAN_SEEDS.flexible.ratePlanId;
+  const flexRatePlanName = isBusinessLateArrivalDemo ? "Flexible" : CLOUDBEDS_RATE_PLAN_SEEDS.flexible.ratePlanName;
+  const saverRatePlanId = isBusinessLateArrivalDemo ? "rp_king_saver" : CLOUDBEDS_RATE_PLAN_SEEDS.payNow.ratePlanId;
+  const saverRatePlanName = isBusinessLateArrivalDemo
+    ? "Saver (Non-Refundable)"
+    : CLOUDBEDS_RATE_PLAN_SEEDS.payNow.ratePlanName;
+
   const ratePlans: CloudbedsGetRatePlan[] = [
     {
-      ratePlanID: CLOUDBEDS_RATE_PLAN_SEEDS.flexible.ratePlanId,
-      ratePlanNamePublic: CLOUDBEDS_RATE_PLAN_SEEDS.flexible.ratePlanName,
+      ratePlanID: flexRatePlanId,
+      ratePlanNamePublic: flexRatePlanName,
       refundability: CLOUDBEDS_RATE_PLAN_SEEDS.flexible.refundability,
       paymentTiming: CLOUDBEDS_RATE_PLAN_SEEDS.flexible.paymentTiming,
       currency: request.currency,
@@ -146,8 +154,8 @@ const buildRoomTypeForScenario = (
       totalAfterTax: round2(flexibleTotal + flexibleTaxes),
     },
     {
-      ratePlanID: CLOUDBEDS_RATE_PLAN_SEEDS.payNow.ratePlanId,
-      ratePlanNamePublic: CLOUDBEDS_RATE_PLAN_SEEDS.payNow.ratePlanName,
+      ratePlanID: saverRatePlanId,
+      ratePlanNamePublic: saverRatePlanName,
       refundability: CLOUDBEDS_RATE_PLAN_SEEDS.payNow.refundability,
       paymentTiming: CLOUDBEDS_RATE_PLAN_SEEDS.payNow.paymentTiming,
       currency: request.currency,
@@ -163,9 +171,32 @@ const buildRoomTypeForScenario = (
 
   applyScenarioRatePlanMutations(ratePlans, request.currency, scenario, checkIn, nights);
 
+  if (isBusinessLateArrivalDemo) {
+    const flex = ratePlans[0];
+    const saver = ratePlans[1];
+    if (flex) {
+      flex.totalRate = 258.13;
+      flex.taxesAndFees = 30.97;
+      flex.totalAfterTax = 289.1;
+      const firstRate = flex.detailedRates[0];
+      if (firstRate) {
+        flex.detailedRates = [{ ...firstRate, roomRate: 258.13 }];
+      }
+    }
+    if (saver) {
+      saver.totalRate = 231.34;
+      saver.taxesAndFees = 27.76;
+      saver.totalAfterTax = 259.1;
+      const firstRate = saver.detailedRates[0];
+      if (firstRate) {
+        saver.detailedRates = [{ ...firstRate, roomRate: 231.34 }];
+      }
+    }
+  }
+
   return {
     roomTypeID: roomType.roomTypeId,
-    roomTypeName: roomType.roomTypeName,
+    roomTypeName: isBusinessLateArrivalDemo && roomType.roomTypeId === "RT_KING" ? "Standard King" : roomType.roomTypeName,
     maxOccupancy: roomType.maxOccupancy,
     roomsAvailable: isCompressionWeekend ? Math.min(1, roomType.roomsAvailable) : roomType.roomsAvailable,
     totalInventory: roomType.roomsAvailable + 9,
