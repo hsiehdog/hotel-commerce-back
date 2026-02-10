@@ -187,6 +187,7 @@ The commerce engine runs this deterministic pipeline:
     - absolute spread = `abs(primaryTotal - secondaryTotal)`
     - percent spread = `abs(primaryTotal - secondaryTotal) / min(primaryTotal, secondaryTotal)`
     - both thresholds must pass for the selected strategy mode
+    - percent spread intentionally uses the lower total as denominator to avoid asymmetric calculations
 
 6. Attach enhancements
 - Enhancements are attached after base ranking and do not alter selection.
@@ -263,7 +264,7 @@ The commerce engine runs this deterministic pipeline:
 - `fallbackAction` (when fewer than 2 offers remain)
 - `presentationHints` (includes structured urgency when sourced)
 - `decisionTrace` (human-readable deterministic reasons)
-- `configVersion` (resolved commerce config version)
+- `configVersion` (resolved `property_commerce_config.version` used at runtime, not engine policy version)
 
 When `debug: true` is passed, response also includes:
 - `debug.resolvedRequest`
