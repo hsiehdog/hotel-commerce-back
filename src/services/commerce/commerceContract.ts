@@ -22,9 +22,16 @@ export type CommerceOffer = {
     paymentTiming: "pay_at_property" | "pay_now";
     cancellationSummary: string;
   };
-  pricing: {
-    totalAfterTax: number;
-  };
+  pricing:
+    | {
+        basis: "afterTax" | "beforeTaxPlusTaxes";
+        total: number;
+        totalAfterTax: number;
+      }
+    | {
+        basis: "beforeTax";
+        total: number;
+      };
   urgency?: {
     type: "scarcity_rooms";
     value: number;
@@ -37,7 +44,7 @@ export type CommerceOffer = {
 };
 
 export type CommerceFallbackAction = {
-  type: "suggest_alternate_dates" | "text_booking_link" | "transfer_to_front_desk" | "collect_waitlist";
+  type: "suggest_alternate_dates" | "text_booking_link" | "transfer_to_front_desk" | "collect_waitlist" | "contact_property";
   reason: string;
   suggestions?: Array<{ check_in: string; check_out: string }>;
   requiresCapabilities?: string[];
@@ -55,10 +62,63 @@ export type CommercePresentationHints = {
 };
 
 export type CommerceOfferResponse = {
+  propertyId: string;
+  channel: "voice" | "web" | "agent";
   currency: string;
   priceBasisUsed: "afterTax" | "beforeTaxPlusTaxes" | "beforeTax";
   offers: CommerceOffer[];
   fallbackAction?: CommerceFallbackAction;
   presentationHints: CommercePresentationHints;
-  decisionTrace: string[];
+  reasonCodes: string[];
+  configVersion: number;
+  debug?: {
+    resolvedRequest: {
+      propertyId: string;
+      channel: "voice" | "web" | "agent";
+      checkIn: string;
+      checkOut: string;
+      rooms: number;
+      roomOccupancies: Array<{ adults: number; children: number }>;
+      currency: string;
+      strategyMode: "balanced" | "protect_rate" | "fill_rooms";
+    };
+    profilePreAri: {
+      tripType: string;
+      decisionPosture: string;
+      leadTimeDays: number;
+      nights: number;
+    };
+    profileFinal: {
+      inventoryState: string;
+    };
+    selectionSummary: {
+      primaryArchetype: "SAFE" | "SAVER" | "OTHER" | null;
+      saverPrimaryExceptionApplied: boolean;
+      exceptionReason?: {
+        lowInventory: boolean;
+        roomsAvailable?: number;
+        deltaPercent: number;
+      };
+      secondaryAttempted: boolean;
+      secondaryFailureReason: "SECONDARY_POOL_EMPTY_OPPOSITE_ARCHETYPE" | "SECONDARY_REJECTED_PRICE_SPREAD_GUARDRAIL" | null;
+    };
+    reasonCodes: string[];
+    topCandidates: Array<{
+      roomTypeId: string;
+      ratePlanId: string;
+      roomsAvailable?: number;
+      riskContributors: Array<"NON_REFUNDABLE" | "PAY_NOW" | "LOW_INVENTORY">;
+      basis: "afterTax" | "beforeTaxPlusTaxes" | "beforeTax";
+      totalPrice: number;
+      archetype: "SAFE" | "SAVER" | "OTHER";
+      scoreTotal: number;
+      components: {
+        valueScore: number;
+        conversionScore: number;
+        experienceScore: number;
+        riskScore: number;
+        marginProxyScore: number;
+      };
+    }>;
+  };
 };

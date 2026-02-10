@@ -89,9 +89,10 @@ pnpm dev
 
 - `POST /offers/generate` (auth required)
   - Supported request shapes:
-    - Wrapped: `{ slots, intent? }`
-    - Commerce-friendly top-level: `{ property_id, channel, check_in, check_out, adults, rooms, ... }`
-  - Response: `{ data: { currency, priceBasisUsed, offers, fallbackAction?, presentationHints, decisionTrace } }`
+    - Canonical top-level (recommended): `{ property_id, channel, check_in, check_out, adults, rooms, ... }`
+    - Compatibility shim: `{ slots: { ... } }`
+  - Defaults when omitted: `property_id="demo_property"`, `channel="voice"`
+  - Response: `{ data: { propertyId, channel, currency, priceBasisUsed, offers, fallbackAction?, presentationHints, decisionTrace, configVersion } }`
   - Validation/clarification errors return `422` via `ApiError`
 
 ### Twilio Voice
@@ -115,6 +116,15 @@ Core policy is deterministic and versioned.
 - `src/services/commerce/commercePolicyV1.ts`
 - `src/services/commerce/commerceEvaluators.ts`
 - `src/services/commerce/commerceContract.ts`
+- `src/services/commerce/normalizeOfferRequest.ts`
+- `src/services/commerce/buildCommerceProfile.ts`
+- `src/services/commerce/generateCandidates.ts`
+- `src/services/commerce/filterCandidates.ts`
+- `src/services/commerce/scoring/weights.ts`
+- `src/services/commerce/scoring/scoreCandidates.ts`
+- `src/services/commerce/selectArchetypeOffers.ts`
+- `src/services/commerce/buildCommerceOffers.ts`
+- `src/presentation/reasonCodeCopy.ts`
 
 ### Guardrails Implemented
 
@@ -130,63 +140,94 @@ Core policy is deterministic and versioned.
 - Saver-primary exception only under locked compression + delta thresholds
 - Fallback clarification when pricing is not trustworthy
 
-### Default Decision Logic
+### Default Ranking Pipeline
 
-The engine currently makes these default decisions for each `/offers/generate` request:
+The commerce engine runs this deterministic pipeline:
 
-1. Input normalization
-- Accepts either:
-  - wrapped request: `{ slots, intent? }`
-  - top-level commerce request: `{ property_id, check_in, check_out, adults, rooms, ... }`
-- In wrapped mode, `slots.preferences` (for example `late_arrival`) is also read and mapped into commerce behavior.
+1. Normalize request
+- Convert wrapped/top-level payloads into one canonical request shape.
+- Canonical request includes dates, occupancy, currency, strategy mode, capabilities, and profile pre-ARI.
 
-2. Required slot validation and confirmation
-- Validates/normalizes dates and required occupancy slots.
-- Uses clarification flow when required data is missing or ambiguous.
+2. Build broad candidates
+- Expand ARI into `(roomType x ratePlan)` candidate rows.
 
-3. Candidate generation and eligibility filtering
-- Pulls ARI/getRatePlans stub data.
-- Filters out candidates that fail restrictions (`cta`, `ctd`, `minLos`, `maxLos`).
-- Rejects candidates with invalid pricing basis.
-- Rejects candidates with currency mismatch against request currency (no FX in v1).
+3. Apply hard filters
+- occupancy fit
+- restrictions (`cta`, `ctd`, `minLos`, `maxLos`)
+- currency exact match (no FX)
+- pricing basis validity
 
-4. Pricing basis fallback
-- Candidate pricing basis priority:
-  1. `totalAfterTax`
-  2. `totalBeforeTax + taxesAndFees`
-  3. `totalBeforeTax` (degraded mode)
-  4. invalid candidate (fail closed if none remain)
+4. Basis-group scoring
+- Prefer `afterTax` candidate group; fallback to `beforeTaxPlusTaxes`, then `beforeTax`.
+- Score candidates deterministically (`value`, `conversion`, `experience`, `marginProxy`, `risk`) with profile+strategy weights.
 
-5. Primary/secondary selection defaults
-- Defaults to refundable primary (`SAFE`) where available.
-- Picks secondary contrast (`SAVER`) when available and policy-safe.
-- Applies strategy-based price-delta guardrails for pairing (`balanced` default).
+5. Archetype selection
+- Primary defaults to best `SAFE`.
+- Saver-primary exception allowed only under low inventory + required price-delta threshold.
+- Secondary is selected from opposite archetype if guardrails pass.
 
-6. Saver-primary exception
-- Non-refundable can become primary only when compression + delta thresholds are met.
-- When saver-primary is selected and scarcity is factual (`roomsAvailable <= 2`), structured urgency is returned.
+6. Attach enhancements
+- Enhancements are attached after base ranking and do not alter selection.
+- Family/space -> breakfast (`info`)
+- Late-arrival/urgent -> late checkout (`request` + disclosure)
 
-7. Enhancements (merchandising layer)
-- Enhancements are attached to the primary offer only (not a 3rd offer):
-  - Family/space signals -> breakfast (`availability: info`)
-  - Late-arrival signal -> late checkout (`availability: request`, with disclosure)
+7. Fallback matrix
+- If fewer than 2 offers remain, fallback action is selected from a deterministic channel/capability matrix.
 
-8. Fallback behavior when <2 offers remain
-- If one offer remains, returns one offer plus structured fallback action.
-- If no trustworthy offer remains, returns safe clarification error (`422`) instead of fabricating pricing.
+8. Explainability
+- Engine returns reason codes.
+- Presentation layer maps reason codes to `decisionTrace` copy.
 
-9. Explainability fields in response
-- Returns `priceBasisUsed`, `presentationHints`, and `decisionTrace` so selection is auditable.
+### Locked v1 Defaults
+
+- Strategy mode defaults to `balanced` when no property config exists.
+- Fallback capability defaults (when config missing): text-link + waitlist enabled, transfer requires configured property hours/timezone, booking URL defaults to `https://example.com/book`.
+- Currency handling is strict exact-match (`candidate.currency === requestCurrency`), with no FX conversion.
+- Occupancy normalization:
+  - If `roomOccupancies` is omitted, guests are distributed across `rooms` (no empty rooms).
+  - `rooms > totalGuests` is rejected in v1 unless explicit room-level occupancies are provided.
+  - Per-room `childAges` is rejected in v1 (top-level `child_ages` only).
+  - Any `roomOccupancies` row with zero guests is rejected.
+- Basis handling is strict group selection:
+  - Prefer `afterTax`
+  - Else `beforeTaxPlusTaxes`
+  - Else `beforeTax`
+  - Never mix basis types across selected offers.
+- SAFE/SAVER precedence:
+  - `refundable` => SAFE
+  - `non_refundable` => SAVER
+  - fallback: `pay_at_property` => SAFE, `pay_now` => SAVER
+- Saver-primary exception:
+  - only when low inventory (`roomsAvailable <= 2`) and SAFE-vs-SAVER delta is at least 30%.
+- Price spread guardrails by strategy mode:
+  - `protect_rate`: `<=20%` and `<= $250`
+  - `balanced`: `<=25%` and `<= $300`
+  - `fill_rooms`: `<=35%` and `<= $400`
+- Enhancements are attached post-selection and never alter base ranking.
 
 ### Response Contract
 
 `/offers/generate` returns a commerce-oriented contract:
+- `propertyId`
+- `channel`
 - `currency`
 - `priceBasisUsed`
 - `offers` (0-2)
+  - `offers[].pricing` is basis-aware:
+    - `afterTax` / `beforeTaxPlusTaxes`: `{ basis, total, totalAfterTax }`
+    - `beforeTax`: `{ basis, total }`
 - `fallbackAction` (when fewer than 2 offers remain)
 - `presentationHints` (includes structured urgency when sourced)
 - `decisionTrace` (human-readable deterministic reasons)
+- `configVersion` (resolved commerce config version)
+
+When `debug: true` is passed, response also includes:
+- `debug.resolvedRequest`
+- `debug.profilePreAri`
+- `debug.profileFinal`
+- `debug.selectionSummary`
+- `debug.reasonCodes`
+- `debug.topCandidates` (capped list; includes `roomsAvailable`, `riskContributors`, scoring components)
 
 ## Cloudbeds `getRatePlans` Stubs
 
@@ -243,6 +284,106 @@ curl -sS "$BASE_URL/offers/generate" \
   }' | jq '.data.offers'
 ```
 
+## Scenario Examples (Commerce Brain)
+
+Use these requests to verify decision-engine behavior.
+
+1. Family weekend: SAFE primary + family enhancement
+```bash
+curl -sS "$BASE_URL/offers/generate" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: $SESSION_COOKIE" \
+  -d '{
+    "property_id": "cb_123",
+    "channel": "voice",
+    "check_in": "2026-04-10",
+    "check_out": "2026-04-13",
+    "rooms": 1,
+    "adults": 2,
+    "children": 2,
+    "child_ages": [7,10],
+    "preferences": { "needs_space": true }
+  }' | jq '.data | {offers: .offers, presentationHints: .presentationHints, decisionTrace: .decisionTrace}'
+```
+Expected:
+- `offers[0].type = "SAFE"`
+- `offers[0].enhancements[0].availability = "info"`
+
+2. Compression weekend: saver-primary exception + factual urgency
+```bash
+curl -sS "$BASE_URL/offers/generate" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: $SESSION_COOKIE" \
+  -d '{
+    "property_id": "cb_123",
+    "channel": "voice",
+    "check_in": "2026-05-22",
+    "check_out": "2026-05-25",
+    "rooms": 1,
+    "adults": 2
+  }' | jq '.data | {offers: .offers, presentationHints: .presentationHints, decisionTrace: .decisionTrace}'
+```
+Expected:
+- `offers[0].type = "SAVER"`
+- `offers[0].urgency.type = "scarcity_rooms"`
+
+3. Business late arrival: convenience enhancement as request-only
+```bash
+curl -sS "$BASE_URL/offers/generate" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: $SESSION_COOKIE" \
+  -d '{
+    "property_id": "cb_123",
+    "channel": "voice",
+    "check_in": "2026-03-17",
+    "check_out": "2026-03-18",
+    "rooms": 1,
+    "adults": 1,
+    "preferences": { "late_arrival": true }
+  }' | jq '.data | {offers: .offers, presentationHints: .presentationHints, decisionTrace: .decisionTrace}'
+```
+Expected:
+- `offers[0].type = "SAFE"`
+- `offers[0].enhancements[0].availability = "request"`
+- enhancement disclosure mentions availability at check-in
+
+4. Constraint weekend: one offer + fallback action
+```bash
+curl -sS "$BASE_URL/offers/generate" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: $SESSION_COOKIE" \
+  -d '{
+    "property_id": "cb_123",
+    "channel": "voice",
+    "check_in": "2026-05-23",
+    "check_out": "2026-05-24",
+    "rooms": 1,
+    "adults": 2
+  }' | jq '.data | {offers: .offers, fallbackAction: .fallbackAction, decisionTrace: .decisionTrace}'
+```
+Expected:
+- `offers | length` is `1`
+- `fallbackAction` is present (typically `text_booking_link` when capabilities allow)
+
+5. Currency mismatch: strict invalidation + graceful fallback
+```bash
+curl -sS "$BASE_URL/offers/generate" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: $SESSION_COOKIE" \
+  -d '{
+    "property_id": "cb_999",
+    "channel": "voice",
+    "check_in": "2026-06-05",
+    "check_out": "2026-06-07",
+    "rooms": 1,
+    "adults": 2,
+    "currency": "USD"
+  }' | jq '.data | {offers: .offers, fallbackAction: .fallbackAction, decisionTrace: .decisionTrace}'
+```
+Expected:
+- one comparable offer remains
+- `fallbackAction` present due to filtered mismatched-currency candidates
+
 ## Database Schema Notes
 
 Prisma models include:
@@ -250,9 +391,13 @@ Prisma models include:
 - Commerce support tables:
   - `properties`
   - `property_hours`
+  - `property_commerce_config`
+  - `room_tier_overrides`
 
 Recent migration:
 - `prisma/migrations/20260209123000_add_property_hours/migration.sql`
+- `prisma/migrations/20260210182000_add_commerce_config/migration.sql`
+- `prisma/migrations/20260210184000_add_capability_fields/migration.sql`
 
 ## Project Structure
 

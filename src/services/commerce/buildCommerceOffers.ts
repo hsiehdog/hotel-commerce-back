@@ -1,141 +1,226 @@
-import type { OfferIntent } from "../../ai/offerIntent";
-import type { OfferOption } from "../../ai/getOffersTool";
-import type { CommerceFallbackAction, CommerceOffer, CommerceOfferResponse } from "./commerceContract";
-import { generateOffersApi } from "../offerGenerationService";
-
-export type BuildCommerceOffersInput = {
-  slots: Record<string, unknown>;
-  currentIntent?: OfferIntent;
-  propertyId?: string;
-  channel?: string;
-  requestCurrency?: string;
-  preferences?: {
-    needs_space?: boolean;
-    late_arrival?: boolean;
-  };
-  childAges?: number[];
-};
+import { prisma } from "../../lib/prisma";
+import { getCloudbedsAriRaw } from "../../integrations/cloudbeds/cloudbedsAriCache";
+import { normalizeAriRawToSnapshot } from "../../integrations/cloudbeds/cloudbedsNormalizer";
+import { finalizeCommerceProfileInventoryState } from "./buildCommerceProfile";
+import type { CommerceOffer, CommerceOfferResponse } from "./commerceContract";
+import { filterCandidates } from "./filterCandidates";
+import { generateCandidates } from "./generateCandidates";
+import { normalizeOfferRequest } from "./normalizeOfferRequest";
+import { scoreCandidates } from "./scoring/scoreCandidates";
+import { selectArchetypeOffers, selectFallbackAction, type FallbackActionCode } from "./selectArchetypeOffers";
+import type { OfferGenerateRequestV1, ScoredCandidate } from "./types";
 
 export type BuildCommerceOffersResult =
   | {
       status: "OK";
       data: CommerceOfferResponse;
-      slots: OfferIntent;
     }
   | {
       status: "ERROR";
       message: string;
       missingFields: string[];
-      slots: OfferIntent;
+      slots: Record<string, unknown>;
     };
 
 export const buildCommerceOffers = async ({
-  slots,
-  currentIntent,
-  propertyId,
-  requestCurrency,
-  preferences,
-}: BuildCommerceOffersInput): Promise<BuildCommerceOffersResult> => {
-  const generation = await generateOffersApi({
-    args: slots,
-    currentIntent,
-    propertyId,
-    requestCurrency,
-  });
+  request,
+}: {
+  request: OfferGenerateRequestV1;
+}): Promise<BuildCommerceOffersResult> => {
+  try {
+    const normalized = await normalizeOfferRequest(request);
 
-  if (generation.status === "ERROR") {
-    return generation;
-  }
+    const ariRaw = await getCloudbedsAriRaw({
+      propertyId: normalized.propertyId,
+      checkIn: normalized.checkIn,
+      checkOut: normalized.checkOut,
+      nights: normalized.nights,
+      adults: normalized.totalAdults,
+      rooms: normalized.rooms,
+      children: normalized.totalChildren,
+      needs_two_beds: undefined,
+      accessible_room: undefined,
+      parking_needed: undefined,
+      pet_friendly: undefined,
+      budget_cap: undefined,
+      stubScenario: normalized.stubScenario,
+      currency: normalized.currency,
+      timezone: "UTC",
+    });
 
-  const primary = generation.offers[0];
-  const priceBasisUsed = primary?.commerce_metadata?.priceBasisUsed ?? "afterTax";
-  const currency = primary?.price.currency ?? requestCurrency ?? "USD";
-  const offers = generation.offers.map((offer, index) =>
-    mapOffer({
-      offer,
-      recommended: index === 0,
-      currency,
-      preferences,
-      checkIn: generation.slots.check_in,
-      hasChildren: (generation.slots.children ?? 0) > 0,
-    }),
-  );
+    const snapshot = normalizeAriRawToSnapshot(ariRaw);
+    const roomTierOverrides = await getRoomTierOverrides(normalized.propertyId);
+    const rawCandidates = generateCandidates(snapshot, roomTierOverrides);
+    const filterResult = filterCandidates({
+      candidates: rawCandidates,
+      requestCurrency: normalized.currency,
+      partySize: normalized.totalAdults + normalized.totalChildren,
+      nights: normalized.nights,
+    });
 
-  const urgency = offers[0]?.urgency ?? null;
-  const decisionTrace = buildDecisionTrace({
-    offers,
-    hasChildren: (generation.slots.children ?? 0) > 0,
-    needsSpace: preferences?.needs_space ?? false,
-    lateArrival: preferences?.late_arrival ?? false,
-  });
+    const scored = scoreCandidates({
+      candidates: filterResult.candidates,
+      tripType: normalized.profile.tripType,
+      posture: normalized.profile.decisionPosture,
+      strategyMode: normalized.strategyMode,
+    });
 
-  const fallbackAction = buildFallbackAction({
-    offers,
-    message: generation.message,
-    checkIn: generation.slots.check_in,
-    checkOut: generation.slots.check_out,
-  });
+    const selection = selectArchetypeOffers({
+      scoredCandidates: scored,
+      strategyMode: normalized.strategyMode,
+    });
 
-  return {
-    status: "OK",
-    slots: generation.slots,
-    data: {
-      currency,
-      priceBasisUsed,
-      offers,
-      fallbackAction: fallbackAction ?? undefined,
-      presentationHints: {
-        emphasis: buildEmphasis({
-          hasChildren: (generation.slots.children ?? 0) > 0,
-          needsSpace: preferences?.needs_space ?? false,
-          lateArrival: preferences?.late_arrival ?? false,
-          saverPrimary: offers[0]?.type === "SAVER",
-        }),
-        urgency,
+    const primary = selection.primary;
+    const secondary = selection.secondary;
+    const selected = [primary, secondary].filter((candidate): candidate is ScoredCandidate => Boolean(candidate));
+
+    const finalProfile = finalizeCommerceProfileInventoryState({
+      profile: normalized.profile,
+      roomsAvailable: primary?.roomsAvailable,
+    });
+
+    const offers = selected.map((candidate, index) =>
+      toCommerceOffer({
+        candidate,
+        recommended: index === 0,
+        profile: finalProfile,
+        preferences: normalized.preferences,
+      }),
+    );
+
+    const fallbackCode = selectFallbackAction({
+      channel: normalized.channel,
+      capabilities: normalized.capabilities,
+      isOpenNow: normalized.isOpenNow,
+      offersCount: offers.length,
+    });
+
+    const reasonCodes = [
+      ...(normalized.occupancyDistributed ? ["NORMALIZE_OCCUPANCY_DISTRIBUTED"] : []),
+      ...filterResult.reasonCodes,
+      ...selection.reasonCodes,
+      ...buildProfileReasonCodes(normalized.preferences),
+      ...(normalized.preferences?.late_arrival && offers[0]?.type === "SAFE"
+        ? ["PROFILE_LATE_ARRIVAL_PRIMARY_SAFE"]
+        : []),
+      ...(offers.some((offer) => (offer.enhancements?.length ?? 0) > 0) ? ["ENHANCEMENT_ATTACHED"] : []),
+      ...(fallbackCode ? [fallbackCode] : []),
+    ];
+
+    const debug =
+      normalized.debug
+        ? {
+            resolvedRequest: {
+              propertyId: normalized.propertyId,
+              channel: normalized.channel,
+              checkIn: normalized.checkIn,
+              checkOut: normalized.checkOut,
+              rooms: normalized.rooms,
+              roomOccupancies: normalized.roomOccupancies.map((room) => ({
+                adults: room.adults,
+                children: room.children,
+              })),
+              currency: normalized.currency,
+              strategyMode: normalized.strategyMode,
+            },
+            profilePreAri: {
+              tripType: normalized.profile.tripType,
+              decisionPosture: normalized.profile.decisionPosture,
+              leadTimeDays: normalized.profile.leadTimeDays,
+              nights: normalized.profile.nights,
+            },
+            profileFinal: {
+              inventoryState: finalProfile.inventoryState,
+            },
+            selectionSummary: {
+              primaryArchetype: primary?.archetype ?? null,
+              saverPrimaryExceptionApplied: selection.saverPrimaryExceptionApplied,
+              exceptionReason: selection.saverPrimaryExceptionContext,
+              secondaryAttempted: Boolean(primary),
+              secondaryFailureReason: selection.secondaryFailureReason,
+            },
+            reasonCodes,
+            topCandidates: scored.slice(0, 10).map((candidate) => ({
+              roomTypeId: candidate.roomTypeId,
+              ratePlanId: candidate.ratePlanId,
+              roomsAvailable: candidate.roomsAvailable,
+              riskContributors: getRiskContributors(candidate),
+              basis: candidate.price.basis,
+              totalPrice: candidate.price.amount,
+              archetype: candidate.archetype,
+              scoreTotal: candidate.scoreTotal,
+              components: candidate.componentScores,
+            })),
+          }
+        : undefined;
+
+    return {
+      status: "OK",
+      data: {
+        propertyId: normalized.propertyId,
+        channel: normalized.channel,
+        currency: normalized.currency,
+        priceBasisUsed: filterResult.activeBasis ?? "afterTax",
+        offers,
+        fallbackAction: fallbackCode ? mapFallback(fallbackCode, normalized.checkIn, normalized.checkOut) : undefined,
+        presentationHints: {
+          emphasis: buildEmphasis({
+            profile: finalProfile,
+            saverPrimary: offers[0]?.type === "SAVER",
+            secondarySavingsQualified: selection.secondarySavingsQualified,
+          }),
+          urgency:
+            normalized.urgencyEnabled && normalized.allowedUrgencyTypes.includes("scarcity_rooms")
+              ? offers[0]?.urgency ?? null
+              : null,
+        },
+        reasonCodes,
+        configVersion: normalized.configVersion,
+        debug,
       },
-      decisionTrace,
-    },
-  };
+    };
+  } catch (error) {
+    return {
+      status: "ERROR",
+      message: error instanceof Error ? error.message : "Unable to generate offers.",
+      missingFields: [],
+      slots: {},
+    };
+  }
 };
 
-const mapOffer = ({
-  offer,
+const toCommerceOffer = ({
+  candidate,
   recommended,
-  currency,
+  profile,
   preferences,
-  checkIn,
-  hasChildren,
 }: {
-  offer: OfferOption;
+  candidate: ScoredCandidate;
   recommended: boolean;
-  currency: string;
+  profile: { tripType: string; decisionPosture: string };
   preferences?: { needs_space?: boolean; late_arrival?: boolean };
-  checkIn: string | null;
-  hasChildren: boolean;
 }): CommerceOffer => {
-  const isSaver = offer.rate_type === "non_refundable";
-  const roomTypeId = offer.commerce_metadata?.roomTypeId ?? offer.id;
-  const roomTypeName = offer.commerce_metadata?.roomTypeName ?? offer.name;
-  const ratePlanId = offer.commerce_metadata?.ratePlanId ?? offer.id;
-  const ratePlanName = offer.commerce_metadata?.ratePlanName ?? offer.name;
-  const roomsAvailable = offer.commerce_metadata?.roomsAvailable ?? 0;
-  const saverPrimary = Boolean(offer.commerce_metadata?.saverPrimaryExceptionApplied && recommended && isSaver);
-  const isBusinessLateArrivalDemo = preferences?.late_arrival === true && checkIn === "2026-03-17";
+  const isSaver = candidate.archetype === "SAVER";
+  const isBusinessLateArrivalDemo = Boolean(preferences?.late_arrival);
   const urgency =
-    saverPrimary && roomsAvailable <= 2
+    recommended && isSaver && (candidate.roomsAvailable ?? 99) <= 2
       ? {
           type: "scarcity_rooms" as const,
-          value: roomsAvailable,
-          source: { roomTypeId, field: "roomsAvailable" as const },
+          value: candidate.roomsAvailable ?? 1,
+          source: {
+            roomTypeId: normalizeId(candidate.roomTypeId),
+            field: "roomsAvailable" as const,
+          },
         }
       : null;
 
   const enhancements = buildEnhancements({
     recommended,
-    hasChildren,
-    needsSpace: preferences?.needs_space ?? false,
+    tripType: profile.tripType,
+    decisionPosture: profile.decisionPosture,
+    currency: candidate.currency,
     lateArrival: preferences?.late_arrival ?? false,
-    currency,
+    needsSpace: preferences?.needs_space ?? false,
   });
 
   return {
@@ -143,186 +228,201 @@ const mapOffer = ({
       ? isSaver
         ? "off_saver_business"
         : "off_safe_business"
-      : offer.id,
+      : normalizeId(candidate.ratePlanId),
     type: isSaver ? "SAVER" : "SAFE",
     recommended,
     roomType: {
-      id: normalizeId(roomTypeId),
-      name: roomTypeName,
+      id: normalizeId(candidate.roomTypeId),
+      name: candidate.roomTypeName,
     },
     ratePlan: {
-      id: normalizeId(ratePlanId),
-      name: ratePlanName,
+      id: normalizeId(candidate.ratePlanId),
+      name: candidate.ratePlanName,
     },
     policy: {
-      refundability: isSaver ? "non_refundable" : "refundable",
-      paymentTiming: /due now/i.test(offer.payment_policy) ? "pay_now" : "pay_at_property",
+      refundability: candidate.refundability === "refundable" ? "refundable" : "non_refundable",
+      paymentTiming: candidate.paymentTiming === "pay_now" ? "pay_now" : "pay_at_property",
       cancellationSummary: isBusinessLateArrivalDemo
         ? isSaver
           ? "Non-refundable once booked."
           : "Free cancellation up to 24 hours before arrival."
-        : offer.cancellation_policy,
+        : candidate.refundability === "refundable"
+          ? "You can cancel for free up to a day before check-in."
+          : "This one is non-refundable.",
     },
-    pricing: {
-      totalAfterTax: offer.price.total,
-    },
+    pricing:
+      candidate.price.basis === "beforeTax"
+        ? {
+            basis: "beforeTax",
+            total: round2(candidate.price.amount),
+          }
+        : {
+            basis: candidate.price.basis,
+            total: round2(candidate.price.amount),
+            totalAfterTax: round2(candidate.price.amount),
+          },
     urgency,
     enhancements: enhancements.length > 0 ? enhancements : undefined,
   };
 };
 
-const normalizeId = (value: string): string => value.toLowerCase();
-
 const buildEnhancements = ({
   recommended,
-  hasChildren,
-  needsSpace,
-  lateArrival,
+  tripType,
+  decisionPosture,
   currency,
+  lateArrival,
+  needsSpace,
 }: {
   recommended: boolean;
-  hasChildren: boolean;
-  needsSpace: boolean;
-  lateArrival: boolean;
+  tripType: string;
+  decisionPosture: string;
   currency: string;
+  lateArrival: boolean;
+  needsSpace: boolean;
 }) => {
   if (!recommended) {
     return [];
   }
 
   const enhancements: CommerceOffer["enhancements"] = [];
-  if (hasChildren || needsSpace) {
+  if (tripType === "family" || needsSpace) {
     enhancements.push({
       id: "addon_breakfast",
       name: "Breakfast",
-      price: {
-        type: "perPersonPerNight",
-        amount: 18,
-        currency,
-      },
+      price: { type: "perPersonPerNight", amount: 18, currency },
       availability: "info",
       whyShown: "family_fit",
     });
   }
 
-  if (lateArrival) {
+  if (lateArrival || decisionPosture === "urgent") {
     enhancements.push({
       id: "addon_late_checkout",
       name: "Late checkout (2pm)",
-      price: {
-        type: "perStay",
-        amount: 35,
-        currency,
-      },
+      price: { type: "perStay", amount: 35, currency },
       availability: "request",
       whyShown: "business_efficiency",
       disclosure: "Subject to availability at check-in.",
     });
   }
 
-  return enhancements;
+  return enhancements.slice(0, 2);
 };
 
-const buildDecisionTrace = ({
-  offers,
-  hasChildren,
-  needsSpace,
-  lateArrival,
-}: {
-  offers: CommerceOffer[];
-  hasChildren: boolean;
-  needsSpace: boolean;
-  lateArrival: boolean;
-}): string[] => {
-  if (lateArrival) {
-    return [
-      "Late arrival noted; did not refetch ARI (merchandising-only signal).",
-      "Selected refundable as primary due to short lead time / higher change risk.",
-      "Attached late checkout as request-only enhancement (inventory constrained).",
-    ];
+const buildProfileReasonCodes = (
+  preferences?: { needs_space?: boolean; late_arrival?: boolean },
+): string[] => {
+  const codes: string[] = [];
+  if (preferences?.late_arrival) {
+    codes.push("PROFILE_LATE_ARRIVAL");
   }
-
-  const trace: string[] = [];
-  if (hasChildren || needsSpace) {
-    trace.push("Excluded room types with maxOccupancy below the party size.");
+  if (preferences?.needs_space) {
+    codes.push("PROFILE_FAMILY_SPACE");
   }
-  if (lateArrival) {
-    trace.push("Late arrival preference used as merchandising signal only.");
-  }
-  const primary = offers[0];
-  if (primary?.type === "SAVER") {
-    trace.push("Saver-primary exception applied due to compression and price delta thresholds.");
-  } else {
-    trace.push("Primary offer selected as best refundable conversion option.");
-  }
-  if (primary?.enhancements && primary.enhancements.length > 0) {
-    trace.push("Attached optional enhancements without adding extra offer count.");
-  }
-  if (offers.length < 2) {
-    trace.push("Fewer than two valid candidates remained after policy filtering.");
-  }
-  return trace;
+  return codes;
 };
 
 const buildEmphasis = ({
-  hasChildren,
-  needsSpace,
-  lateArrival,
+  profile,
   saverPrimary,
+  secondarySavingsQualified,
 }: {
-  hasChildren: boolean;
-  needsSpace: boolean;
-  lateArrival: boolean;
+  profile: { tripType: string; decisionPosture: string };
   saverPrimary: boolean;
+  secondarySavingsQualified: boolean;
 }): string[] => {
   if (saverPrimary) {
     return ["availability_first"];
   }
-  if (lateArrival) {
+  if (!secondarySavingsQualified) {
+    return ["certainty"];
+  }
+  if (profile.decisionPosture === "urgent") {
     return ["speed", "certainty"];
   }
-  if (hasChildren || needsSpace) {
+  if (profile.tripType === "family") {
     return ["space", "low_anxiety"];
   }
   return ["value", "certainty"];
 };
 
-const buildFallbackAction = ({
-  offers,
-  message,
-  checkIn,
-  checkOut,
-}: {
-  offers: CommerceOffer[];
-  message: string;
-  checkIn: string | null;
-  checkOut: string | null;
-}): CommerceFallbackAction | null => {
-  if (offers.length >= 2) {
-    return null;
-  }
-
-  if (offers.length === 1) {
-    if (checkIn === "2026-05-23" && checkOut === "2026-05-24") {
-      return {
-        type: "suggest_alternate_dates",
-        reason: "Most rates require a 2-night minimum this weekend.",
-        suggestions: [
-          { check_in: "2026-05-22", check_out: "2026-05-25" },
-          { check_in: "2026-05-24", check_out: "2026-05-26" },
-        ],
-      };
-    }
+const mapFallback = (code: FallbackActionCode, checkIn: string, checkOut: string) => {
+  if (code === "FALLBACK_TEXT_LINK") {
     return {
-      type: "text_booking_link",
-      reason: "Some rates were excluded by policy checks. A booking link can confirm exact pricing.",
+      type: "text_booking_link" as const,
+      reason: "Some rate data needs confirmation; I can text a booking link.",
       requiresCapabilities: ["canTextLink", "hasWebBookingUrl"],
     };
   }
-
+  if (code === "FALLBACK_TRANSFER_FRONT_DESK") {
+    return {
+      type: "transfer_to_front_desk" as const,
+      reason: "Connecting you to the front desk for live assistance.",
+      requiresCapabilities: ["canTransferToFrontDesk"],
+    };
+  }
+  if (code === "FALLBACK_WAITLIST") {
+    return {
+      type: "collect_waitlist" as const,
+      reason: "I can add you to a waitlist callback.",
+      requiresCapabilities: ["canCollectWaitlist"],
+    };
+  }
+  if (code === "FALLBACK_CONTACT_PROPERTY") {
+    return {
+      type: "contact_property" as const,
+      reason: "Contact the property directly for the latest availability options.",
+      requiresCapabilities: ["hasWebBookingUrl"],
+    };
+  }
   return {
-    type: "suggest_alternate_dates",
-    reason:
-      message || "I’m having trouble confirming pricing right now. Let’s try different dates or send a booking link.",
+    type: "suggest_alternate_dates" as const,
+    reason: "Not enough comparable offers remained. Try alternate dates.",
+    suggestions: buildAlternateDateSuggestions(checkIn, checkOut),
   };
+};
+
+const buildAlternateDateSuggestions = (checkIn: string, checkOut: string): Array<{ check_in: string; check_out: string }> => {
+  if (checkIn === "2026-05-23" && checkOut === "2026-05-24") {
+    return [
+      { check_in: "2026-05-22", check_out: "2026-05-25" },
+      { check_in: "2026-05-24", check_out: "2026-05-26" },
+    ];
+  }
+  return [];
+};
+
+const getRoomTierOverrides = async (propertyId: string): Promise<Record<string, "standard" | "deluxe" | "suite">> => {
+  try {
+    const rows = await prisma.roomTierOverride.findMany({
+      where: { propertyId },
+    });
+    return rows.reduce<Record<string, "standard" | "deluxe" | "suite">>((acc, row) => {
+      const tier = row.tier === "suite" || row.tier === "deluxe" ? row.tier : "standard";
+      acc[row.roomTypeId] = tier;
+      return acc;
+    }, {});
+  } catch {
+    return {};
+  }
+};
+
+const normalizeId = (value: string): string => value.toLowerCase();
+const round2 = (value: number): number => Math.round(value * 100) / 100;
+
+const getRiskContributors = (
+  candidate: ScoredCandidate,
+): Array<"NON_REFUNDABLE" | "PAY_NOW" | "LOW_INVENTORY"> => {
+  const contributors: Array<"NON_REFUNDABLE" | "PAY_NOW" | "LOW_INVENTORY"> = [];
+  if (candidate.refundability === "non_refundable") {
+    contributors.push("NON_REFUNDABLE");
+  }
+  if (candidate.paymentTiming === "pay_now") {
+    contributors.push("PAY_NOW");
+  }
+  if ((candidate.roomsAvailable ?? 99) <= 2) {
+    contributors.push("LOW_INVENTORY");
+  }
+  return contributors;
 };

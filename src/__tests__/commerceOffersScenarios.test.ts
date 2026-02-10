@@ -29,11 +29,15 @@ describe("commerce offers scenarios", () => {
     expect(next).not.toHaveBeenCalled();
 
     const payload = (res as unknown as { json: ReturnType<typeof vi.fn> }).json.mock.calls[0]?.[0] as {
-      data: { offers: Array<{ type: string; recommended: boolean; enhancements?: Array<{ availability: string }> }> };
+      data: {
+        offers: Array<{ type: string; recommended: boolean; enhancements?: Array<{ availability: string }> }>;
+        decisionTrace: string[];
+      };
     };
     expect(payload.data.offers[0]?.type).toBe("SAFE");
     expect(payload.data.offers[0]?.recommended).toBe(true);
     expect(payload.data.offers[0]?.enhancements?.[0]?.availability).toBe("info");
+    expect(payload.data.decisionTrace.some((line) => /secondary/i.test(line))).toBe(true);
   });
 
   it("compression weekend can flip primary to SAVER with factual urgency", async () => {
@@ -54,10 +58,11 @@ describe("commerce offers scenarios", () => {
     await generateOffersForChannel(req, res, next as Parameters<typeof generateOffersForChannel>[2]);
     expect(next).not.toHaveBeenCalled();
     const payload = (res as unknown as { json: ReturnType<typeof vi.fn> }).json.mock.calls[0]?.[0] as {
-      data: { offers: Array<{ type: string; urgency?: { type: string } | null }> };
+      data: { offers: Array<{ type: string; urgency?: { type: string } | null }>; decisionTrace: string[] };
     };
     expect(payload.data.offers[0]?.type).toBe("SAVER");
     expect(payload.data.offers[0]?.urgency?.type).toBe("scarcity_rooms");
+    expect(payload.data.decisionTrace.some((line) => /refundable primary/i.test(line))).toBe(false);
   });
 
   it("late arrival adds request-only business enhancement", async () => {
@@ -106,8 +111,7 @@ describe("commerce offers scenarios", () => {
       data: { offers: unknown[]; fallbackAction?: { type?: string; suggestions?: unknown[] } };
     };
     expect(payload.data.offers).toHaveLength(1);
-    expect(payload.data.fallbackAction?.type).toBe("suggest_alternate_dates");
-    expect(payload.data.fallbackAction?.suggestions?.length).toBeGreaterThan(0);
+    expect(payload.data.fallbackAction?.type).toBe("text_booking_link");
   });
 
   it("currency mismatch keeps safe offer and returns link fallback", async () => {

@@ -34,6 +34,8 @@ model Property {
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
   hours           PropertyHours[]
+  commerceConfig  PropertyCommerceConfig?
+  roomTierOverrides RoomTierOverride[]
 
   @@map("properties")
 }
@@ -50,6 +52,39 @@ model PropertyHours {
 
   @@index([propertyId, dayOfWeek])
   @@map("property_hours")
+}
+
+model PropertyCommerceConfig {
+  property      Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId    String   @id @map("property_id")
+  strategyMode  String   @default("balanced") @map("strategy_mode")
+  upsellPosture String?  @map("upsell_posture")
+  cancellationSensitivity String? @map("cancellation_sensitivity")
+  urgencyEnabled Boolean @default(true) @map("urgency_enabled")
+  allowedUrgencyTypes String? @map("allowed_urgency_types")
+  defaultCurrency String? @map("default_currency")
+  enableTextLink Boolean @default(true) @map("enable_text_link")
+  enableTransferFrontDesk Boolean @default(true) @map("enable_transfer_front_desk")
+  enableWaitlist Boolean @default(true) @map("enable_waitlist")
+  webBookingUrl String? @map("web_booking_url")
+  version      Int      @default(1)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("property_commerce_config")
+}
+
+model RoomTierOverride {
+  id         String   @id @default(cuid())
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId String   @map("property_id")
+  roomTypeId String   @map("room_type_id")
+  tier       String
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([propertyId, roomTypeId])
+  @@map("room_tier_overrides")
 }
 
 model AuthSession {
