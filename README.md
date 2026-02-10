@@ -93,7 +93,9 @@ pnpm dev
     - Compatibility shim: `{ slots: { ... } }`
   - Defaults when omitted: `property_id="demo_property"`, `channel="voice"`
   - Response: `{ data: { propertyId, channel, currency, priceBasisUsed, offers, fallbackAction?, presentationHints, decisionTrace, configVersion } }`
-  - Validation/clarification errors return `422` via `ApiError`
+  - Validation errors:
+    - `400` for invalid request schema/body
+    - `422` for semantic clarification errors (e.g., missing/invalid date range)
 
 ### Twilio Voice
 
@@ -159,10 +161,12 @@ The commerce engine runs this deterministic pipeline:
 
 4. Basis-group scoring
 - Prefer `afterTax` candidate group; fallback to `beforeTaxPlusTaxes`, then `beforeTax`.
+- Selected basis group = candidates that passed hard filters and share the chosen basis.
 - Score candidates deterministically (`value`, `conversion`, `experience`, `marginProxy`, `risk`) with profile+strategy weights.
 - Component scoring rules:
   - Each component is normalized/clamped to `0..100`.
   - Normalization is computed within the selected basis group for the request.
+  - `marginProxy` uses relative price position in the selected basis group (higher price => higher proxy).
 - Deterministic tie-breakers (in order):
   - higher `scoreTotal`
   - higher `conversionScore`
@@ -179,6 +183,10 @@ The commerce engine runs this deterministic pipeline:
   - same currency
   - same active pricing basis group
   - strategy price-spread guardrails (`%` and `$`)
+  - guardrail formulas (current implementation):
+    - absolute spread = `abs(primaryTotal - secondaryTotal)`
+    - percent spread = `abs(primaryTotal - secondaryTotal) / min(primaryTotal, secondaryTotal)`
+    - both thresholds must pass for the selected strategy mode
 
 6. Attach enhancements
 - Enhancements are attached after base ranking and do not alter selection.
@@ -214,7 +222,9 @@ The commerce engine runs this deterministic pipeline:
 - Saver-primary exception:
   - only when low inventory (`roomsAvailable <= 2`) and SAFE-vs-SAVER delta is at least 30%.
   - delta formula: `(safeTotal - saverTotal) / safeTotal >= 0.30`
+  - exception is disabled when inventory availability is missing.
 - Inventory state finalization:
+  - pre-selection low-inventory signal for saver-primary uses best SAFE/SAVER candidate availability.
   - `low` when selected primary `roomsAvailable <= 2`
   - `normal` when selected primary `roomsAvailable > 2`
   - `unknown` when selected primary availability is missing
@@ -287,18 +297,18 @@ BASE_URL=http://localhost:4000
 SESSION_COOKIE='better-auth.session_token=...'
 ```
 
-Standard request:
+Standard request (canonical top-level):
 ```bash
 curl -sS "$BASE_URL/offers/generate" \
   -H "Content-Type: application/json" \
   -H "Cookie: $SESSION_COOKIE" \
   -d '{
-    "slots": {
-      "check_in": "2026-02-10",
-      "check_out": "2026-02-12",
-      "adults": 2,
-      "rooms": 1
-    }
+    "property_id": "demo_property",
+    "channel": "voice",
+    "check_in": "2026-02-10",
+    "check_out": "2026-02-12",
+    "adults": 2,
+    "rooms": 1
   }' | jq '.data'
 ```
 
