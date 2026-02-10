@@ -11,7 +11,8 @@ export type CloudbedsStubScenario =
   | "saver_primary_accessible"
   | "currency_mismatch"
   | "before_tax_only"
-  | "invalid_pricing";
+  | "invalid_pricing"
+  | "constraint_min_los";
 
 export type CloudbedsGetRatePlansRequest = {
   propertyId: string;
@@ -71,7 +72,7 @@ export type CloudbedsGetRatePlan = {
 };
 
 export const getRatePlansStub = (request: CloudbedsGetRatePlansRequest): CloudbedsGetRatePlansResponse => {
-  const scenario = resolveScenario(request.scenario);
+  const scenario = resolveScenario(request);
   const nights = resolveNights(request);
   const endDate = request.checkOut ?? addDays(request.checkIn, nights);
   const children = request.children ?? 0;
@@ -115,8 +116,10 @@ const buildRoomTypeForScenario = (
   const { checkIn, adults, children = 0, rooms } = request;
   const adjustedBase = adjustBaseRate(roomType.baseRate, request, adults, children);
   const flexibleRates = buildDailyRates(checkIn, nights, adjustedBase);
+  const isCompressionWeekend = checkIn === "2026-05-22";
   const payNowDiscountRate =
-    scenario === "saver_primary_accessible" && roomType.roomTypeId === CLOUDBEDS_ARI_RULES.accessibleRoomTypeId
+    (scenario === "saver_primary_accessible" && roomType.roomTypeId === CLOUDBEDS_ARI_RULES.accessibleRoomTypeId) ||
+    isCompressionWeekend
       ? 0.35
       : CLOUDBEDS_ARI_ASSUMPTIONS.payNowDiscountRate;
   const nonRefundRates = buildDailyRates(checkIn, nights, round2(adjustedBase * (1 - payNowDiscountRate)));
@@ -158,13 +161,13 @@ const buildRoomTypeForScenario = (
     },
   ];
 
-  applyScenarioRatePlanMutations(ratePlans, request.currency, scenario);
+  applyScenarioRatePlanMutations(ratePlans, request.currency, scenario, checkIn, nights);
 
   return {
     roomTypeID: roomType.roomTypeId,
     roomTypeName: roomType.roomTypeName,
     maxOccupancy: roomType.maxOccupancy,
-    roomsAvailable: roomType.roomsAvailable,
+    roomsAvailable: isCompressionWeekend ? Math.min(1, roomType.roomsAvailable) : roomType.roomsAvailable,
     totalInventory: roomType.roomsAvailable + 9,
     ratePlans,
   };
@@ -174,6 +177,8 @@ const applyScenarioRatePlanMutations = (
   plans: CloudbedsGetRatePlan[],
   defaultCurrency: string,
   scenario: CloudbedsStubScenario,
+  checkIn: string,
+  nights: number,
 ): void => {
   if (scenario === "currency_mismatch" && plans[1]) {
     plans[1].currency = defaultCurrency === "USD" ? "EUR" : "USD";
@@ -192,6 +197,15 @@ const applyScenarioRatePlanMutations = (
       plan.totalRate = null;
       plan.taxesAndFees = null;
     }
+  }
+
+  const isConstraintWeekend = scenario === "constraint_min_los" || (checkIn === "2026-05-23" && nights === 1);
+  if (isConstraintWeekend && plans[1]) {
+    plans[1].detailedRates = plans[1].detailedRates.map((rate) => ({
+      ...rate,
+      minLos: 2,
+      cta: true,
+    }));
   }
 };
 
@@ -260,14 +274,19 @@ const resolveNights = (request: CloudbedsGetRatePlansRequest): number => {
   return CLOUDBEDS_ARI_ASSUMPTIONS.defaultNights;
 };
 
-const resolveScenario = (value?: string): CloudbedsStubScenario => {
+const resolveScenario = (request: CloudbedsGetRatePlansRequest): CloudbedsStubScenario => {
+  const value = request.scenario;
   if (
     value === "saver_primary_accessible" ||
     value === "currency_mismatch" ||
     value === "before_tax_only" ||
-    value === "invalid_pricing"
+    value === "invalid_pricing" ||
+    value === "constraint_min_los"
   ) {
     return value;
+  }
+  if (request.propertyId === "cb_999") {
+    return "currency_mismatch";
   }
   return "default";
 };

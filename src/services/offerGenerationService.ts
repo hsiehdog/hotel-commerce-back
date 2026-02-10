@@ -7,6 +7,8 @@ export type GenerateOffersInput = {
   args: unknown;
   currentIntent?: OfferIntent;
   now?: Date;
+  propertyId?: string;
+  requestCurrency?: string;
 };
 
 export type OfferGenerationOutput =
@@ -39,7 +41,13 @@ export type OfferApiOutput =
       slots: OfferIntent;
     };
 
-export const generateOffers = async ({ args, currentIntent, now }: GenerateOffersInput): Promise<OfferGenerationOutput> => {
+export const generateOffers = async ({
+  args,
+  currentIntent,
+  now,
+  propertyId,
+  requestCurrency,
+}: GenerateOffersInput): Promise<OfferGenerationOutput> => {
   const intent = currentIntent ?? createEmptyOfferIntent();
   const result = resolveOfferSlots(intent, args, now);
 
@@ -48,7 +56,7 @@ export const generateOffers = async ({ args, currentIntent, now }: GenerateOffer
   }
 
   const ariRaw = await getCloudbedsAriRaw({
-    propertyId: "demo_property",
+    propertyId: propertyId ?? "demo_property",
     checkIn: result.slots.check_in ?? "",
     checkOut: result.slots.check_out ?? undefined,
     nights: result.slots.nights ?? undefined,
@@ -61,7 +69,7 @@ export const generateOffers = async ({ args, currentIntent, now }: GenerateOffer
     parking_needed: result.slots.parking_needed ?? undefined,
     budget_cap: result.slots.budget_cap ?? undefined,
     stubScenario: result.slots.stub_scenario ?? undefined,
-    currency: "USD",
+    currency: requestCurrency ?? "USD",
     timezone: result.slots.property_timezone,
   });
 
@@ -108,8 +116,14 @@ const toApiError = (output: Extract<OfferGenerationOutput, { status: "NEEDS_CLAR
   slots: output.slots,
 });
 
-export const generateOffersApi = async ({ args, currentIntent, now }: GenerateOffersInput): Promise<OfferApiOutput> => {
-  const firstPass = await generateOffers({ args, currentIntent, now });
+export const generateOffersApi = async ({
+  args,
+  currentIntent,
+  now,
+  propertyId,
+  requestCurrency,
+}: GenerateOffersInput): Promise<OfferApiOutput> => {
+  const firstPass = await generateOffers({ args, currentIntent, now, propertyId, requestCurrency });
   if (firstPass.status === "OK") {
     return firstPass;
   }
@@ -122,6 +136,8 @@ export const generateOffersApi = async ({ args, currentIntent, now }: GenerateOf
     args,
     currentIntent: firstPass.slots,
     now,
+    propertyId,
+    requestCurrency,
   });
 
   if (secondPass.status === "OK") {

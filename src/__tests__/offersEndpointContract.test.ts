@@ -46,7 +46,7 @@ describe("offers endpoint contract", () => {
     expect((error as ApiError).message).toBe("Invalid request body");
   });
 
-  it("returns structured generation response for valid payload", async () => {
+  it("returns structured commerce response for valid payload", async () => {
     const req = {
       body: {
         slots: {
@@ -65,9 +65,34 @@ describe("offers endpoint contract", () => {
     expect(next).not.toHaveBeenCalled();
     const json = (res as unknown as { json: ReturnType<typeof vi.fn> }).json;
     expect(json).toHaveBeenCalledTimes(1);
-    const payload = json.mock.calls[0]?.[0] as { data?: { status?: string; slots?: { check_in?: string | null } } };
-    expect(payload.data?.status).toBe("OK");
-    expect(payload.data?.slots?.check_in).toBe("2026-02-10");
+    const payload = json.mock.calls[0]?.[0] as { data?: { currency?: string; offers?: Array<{ recommended?: boolean }> } };
+    expect(payload.data?.currency).toBe("USD");
+    expect(payload.data?.offers?.[0]?.recommended).toBe(true);
+  });
+
+  it("accepts top-level commerce request shape", async () => {
+    const req = {
+      body: {
+        property_id: "cb_123",
+        channel: "voice",
+        check_in: "2026-04-10",
+        check_out: "2026-04-13",
+        adults: 2,
+        children: 2,
+        rooms: 1,
+        preferences: { needs_space: true },
+      },
+    } as Parameters<typeof generateOffersForChannel>[0];
+    const res = createResponse() as unknown as Parameters<typeof generateOffersForChannel>[1];
+    const next = vi.fn();
+
+    await generateOffersForChannel(req, res, next as Parameters<typeof generateOffersForChannel>[2]);
+
+    expect(next).not.toHaveBeenCalled();
+    const payload = (res as unknown as { json: ReturnType<typeof vi.fn> }).json.mock.calls[0]?.[0] as {
+      data?: { offers?: Array<{ enhancements?: Array<{ whyShown?: string }> }> };
+    };
+    expect(payload.data?.offers?.[0]?.enhancements?.[0]?.whyShown).toBe("family_fit");
   });
 
   it("passes ApiError(422) when required slot data is missing", async () => {

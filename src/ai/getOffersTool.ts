@@ -45,6 +45,11 @@ export type OfferOption = {
     isPrimary: boolean;
     strategyMode: StrategyMode;
     saverPrimaryExceptionApplied: boolean;
+    roomTypeId: string;
+    roomTypeName: string;
+    ratePlanId: string;
+    ratePlanName: string;
+    roomsAvailable: number;
   };
 };
 
@@ -214,6 +219,9 @@ export const buildOffersFromSnapshot = (
   const requestCurrency = snapshot.currency;
   const candidates = roomType.ratePlans
     .map((plan): OfferCandidate | null => {
+      if (!isPlanEligibleForStay(plan, nights)) {
+        return null;
+      }
       const pricing = resolvePlanPricing(plan);
       if (!pricing) {
         return null;
@@ -381,8 +389,29 @@ const buildOfferOption = ({
       isPrimary,
       strategyMode,
       saverPrimaryExceptionApplied,
+      roomTypeId: roomType.roomTypeId,
+      roomTypeName: roomType.roomTypeName,
+      ratePlanId: plan.ratePlanId,
+      ratePlanName: plan.ratePlanName,
+      roomsAvailable: roomType.roomsAvailable,
     },
   };
+};
+
+const isPlanEligibleForStay = (plan: OfferCandidate["plan"], nights: number): boolean => {
+  if (plan.restrictions.cta || plan.restrictions.ctd) {
+    return false;
+  }
+
+  if (typeof plan.restrictions.minLos === "number" && nights < plan.restrictions.minLos) {
+    return false;
+  }
+
+  if (typeof plan.restrictions.maxLos === "number" && nights > plan.restrictions.maxLos) {
+    return false;
+  }
+
+  return true;
 };
 
 const getPreferredSecondary = (

@@ -88,8 +88,10 @@ pnpm dev
 ### Offers
 
 - `POST /offers/generate` (auth required)
-  - Input: `{ slots, intent? }`
-  - Output: `{ data: { status: "OK", slots, offers, message, speech } }`
+  - Supported request shapes:
+    - Wrapped: `{ slots, intent? }`
+    - Commerce-friendly top-level: `{ property_id, channel, check_in, check_out, adults, rooms, ... }`
+  - Response: `{ data: { currency, priceBasisUsed, offers, fallbackAction?, presentationHints, decisionTrace } }`
   - Validation/clarification errors return `422` via `ApiError`
 
 ### Twilio Voice
@@ -128,26 +130,28 @@ Core policy is deterministic and versioned.
 - Saver-primary exception only under locked compression + delta thresholds
 - Fallback clarification when pricing is not trustworthy
 
-### Offer Metadata
+### Response Contract
 
-Each returned offer may include `commerce_metadata` with:
+`/offers/generate` returns a commerce-oriented contract:
+- `currency`
 - `priceBasisUsed`
-- `degradedPriceControls`
-- `isPrimary`
-- `strategyMode`
-- `saverPrimaryExceptionApplied`
+- `offers` (0-2)
+- `fallbackAction` (when fewer than 2 offers remain)
+- `presentationHints` (includes structured urgency when sourced)
+- `decisionTrace` (human-readable deterministic reasons)
 
 ## Cloudbeds `getRatePlans` Stubs
 
 The ARI source is stubbed in:
 - `src/integrations/cloudbeds/cloudbedsGetRatePlansStub.ts`
 
-Supported local/test scenarios via `slots.stub_scenario`:
+Supported local/test scenarios via `stub_scenario`:
 - `default`
 - `saver_primary_accessible`
 - `currency_mismatch`
 - `before_tax_only`
 - `invalid_pricing`
+- `constraint_min_los`
 
 These scenarios are for local testing and decision-engine verification.
 
@@ -181,13 +185,13 @@ curl -sS "$BASE_URL/offers/generate" \
   -H "Content-Type: application/json" \
   -H "Cookie: $SESSION_COOKIE" \
   -d '{
-    "slots": {
-      "check_in": "2026-02-10",
-      "check_out": "2026-02-12",
-      "adults": 2,
-      "rooms": 1,
-      "stub_scenario": "currency_mismatch"
-    }
+    "property_id": "cb_999",
+    "channel": "voice",
+    "check_in": "2026-06-05",
+    "check_out": "2026-06-07",
+    "adults": 2,
+    "rooms": 1,
+    "currency": "USD"
   }' | jq '.data.offers'
 ```
 
