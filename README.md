@@ -160,11 +160,25 @@ The commerce engine runs this deterministic pipeline:
 4. Basis-group scoring
 - Prefer `afterTax` candidate group; fallback to `beforeTaxPlusTaxes`, then `beforeTax`.
 - Score candidates deterministically (`value`, `conversion`, `experience`, `marginProxy`, `risk`) with profile+strategy weights.
+- Component scoring rules:
+  - Each component is normalized/clamped to `0..100`.
+  - Normalization is computed within the selected basis group for the request.
+- Deterministic tie-breakers (in order):
+  - higher `scoreTotal`
+  - higher `conversionScore`
+  - lower total price
+  - refundable over non-refundable
+  - lexical `(roomTypeId, ratePlanId)`
 
 5. Archetype selection
 - Primary defaults to best `SAFE`.
 - Saver-primary exception allowed only under low inventory + required price-delta threshold.
 - Secondary is selected from opposite archetype if guardrails pass.
+- Secondary selection must satisfy:
+  - opposite archetype
+  - same currency
+  - same active pricing basis group
+  - strategy price-spread guardrails (`%` and `$`)
 
 6. Attach enhancements
 - Enhancements are attached after base ranking and do not alter selection.
@@ -199,11 +213,31 @@ The commerce engine runs this deterministic pipeline:
   - fallback: `pay_at_property` => SAFE, `pay_now` => SAVER
 - Saver-primary exception:
   - only when low inventory (`roomsAvailable <= 2`) and SAFE-vs-SAVER delta is at least 30%.
+  - delta formula: `(safeTotal - saverTotal) / safeTotal >= 0.30`
+- Inventory state finalization:
+  - `low` when selected primary `roomsAvailable <= 2`
+  - `normal` when selected primary `roomsAvailable > 2`
+  - `unknown` when selected primary availability is missing
 - Price spread guardrails by strategy mode:
   - `protect_rate`: `<=20%` and `<= $250`
   - `balanced`: `<=25%` and `<= $300`
   - `fill_rooms`: `<=35%` and `<= $400`
 - Enhancements are attached post-selection and never alter base ranking.
+
+### Fallback Matrix (v1)
+
+- For `offersCount >= 2`: no fallback.
+- For `offersCount == 1`:
+  - `web`: `suggest_alternate_dates`
+  - `voice`: `text_booking_link` if `canTextLink && hasWebBookingUrl`
+  - else `voice`: `transfer_to_front_desk` if `canTransferToFrontDesk && isOpenNow`
+  - else: `suggest_alternate_dates`
+- For `offersCount == 0`:
+  - `web`: `contact_property` if `hasWebBookingUrl`, else `suggest_alternate_dates`
+  - `voice`: `transfer_to_front_desk` if `canTransferToFrontDesk && isOpenNow`
+  - else `text_booking_link` if `canTextLink && hasWebBookingUrl`
+  - else `collect_waitlist` if `canCollectWaitlist`
+  - else: `suggest_alternate_dates`
 
 ### Response Contract
 
