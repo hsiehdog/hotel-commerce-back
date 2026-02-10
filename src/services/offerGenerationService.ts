@@ -2,6 +2,10 @@ import { createEmptyOfferIntent, type OfferIntent } from "../ai/offerIntent";
 import { buildSlotSpeech, buildOffersFromSnapshot, resolveOfferSlots, type OfferOption } from "../ai/getOffersTool";
 import { getCloudbedsAriRaw } from "../integrations/cloudbeds/cloudbedsAriCache";
 import { normalizeAriRawToSnapshot } from "../integrations/cloudbeds/cloudbedsNormalizer";
+import { getPropertyContext } from "./propertyContext/getPropertyContext";
+import { renderCancellationSummary } from "./propertyContext/renderCancellationSummary";
+import { resolvePropertyIdForRequest } from "./propertyContext/resolvePropertyIdForRequest";
+import { selectCancellationPolicy } from "./propertyContext/selectCancellationPolicy";
 
 export type GenerateOffersInput = {
   args: unknown;
@@ -54,9 +58,11 @@ export const generateOffers = async ({
   if (result.status === "NEEDS_CLARIFICATION") {
     return result;
   }
+  const resolvedProperty = await resolvePropertyIdForRequest(propertyId);
+  const resolvedPropertyId = resolvedProperty.propertyId;
 
   const ariRaw = await getCloudbedsAriRaw({
-    propertyId: propertyId ?? "demo_property",
+    propertyId: resolvedPropertyId,
     checkIn: result.slots.check_in ?? "",
     checkOut: result.slots.check_out ?? undefined,
     nights: result.slots.nights ?? undefined,
@@ -84,7 +90,30 @@ export const generateOffers = async ({
     };
   }
 
-  const offers = buildOffersFromSnapshot(snapshot, result.slots);
+  const context = await getPropertyContext(resolvedPropertyId);
+  const offers = buildOffersFromSnapshot(snapshot, result.slots).map((offer) => {
+    const roomTypeId = offer.commerce_metadata?.roomTypeId;
+    if (!roomTypeId || !result.slots.check_in) {
+      return offer;
+    }
+
+    const matchedPolicy = selectCancellationPolicy({
+      policies: context?.cancellationPolicies ?? [],
+      checkIn: result.slots.check_in,
+      roomTypeId,
+    });
+
+    return {
+      ...offer,
+      cancellation_policy: renderCancellationSummary({
+        policy: matchedPolicy,
+        refundability: offer.rate_type === "flexible" ? "refundable" : "non_refundable",
+        checkInDate: result.slots.check_in,
+        propertyTimezone: context?.timezone ?? result.slots.property_timezone ?? "UTC",
+        now: now ?? new Date(),
+      }),
+    };
+  });
   if (offers.length === 0) {
     return {
       status: "NEEDS_CLARIFICATION",

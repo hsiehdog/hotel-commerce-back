@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:generate": "prisma generate"
+    "prisma:generate": "prisma generate",
+    "stub:property:inn-mount-shasta": "node scripts/stubInnAtMountShastaProperty.js"
   },
   "keywords": [],
   "author": "",

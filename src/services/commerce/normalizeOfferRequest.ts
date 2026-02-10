@@ -3,6 +3,7 @@ import { ApiError } from "../../middleware/errorHandler";
 import { buildCommerceProfilePreAri } from "./buildCommerceProfile";
 import { getChannelCapabilities } from "./getChannelCapabilities";
 import { getPropertyStrategy } from "./getPropertyStrategy";
+import { resolvePropertyIdForRequest } from "../propertyContext/resolvePropertyIdForRequest";
 import type { NormalizedOfferRequest, OfferGenerateRequestV1 } from "./types";
 
 const wrappedSchema = z.object({
@@ -87,7 +88,8 @@ export const parseOffersGenerateRequest = (raw: unknown): OfferGenerateRequestV1
 };
 
 export const normalizeOfferRequest = async (raw: OfferGenerateRequestV1): Promise<NormalizedOfferRequest> => {
-  const propertyId = raw.property_id ?? "demo_property";
+  const propertyResolution = await resolvePropertyIdForRequest(raw.property_id);
+  const propertyId = propertyResolution.propertyId;
   const strategy = await getPropertyStrategy(propertyId);
   const capabilityResolution = await getChannelCapabilities(propertyId, {
     enableTextLink: strategy.enableTextLink,

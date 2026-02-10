@@ -71,6 +71,37 @@ pnpm dev
 - `pnpm test` - run Vitest suite
 - `pnpm prisma:migrate` - apply Prisma migrations
 - `pnpm prisma:generate` - regenerate Prisma client
+- `pnpm stub:property:inn-mount-shasta` - upsert property profile/content/policies for The Inn at Mount Shasta
+
+## Property Context (Postgres)
+
+Property profile and policy-of-record data is stored in Postgres (not Redis, not ARI cache):
+
+- `properties` (identity/contact/address/timezone/currency)
+- `property_content` (marketing overview, vibe tags, optional neighborhood highlights)
+- `property_amenities` (structured amenity keys)
+- `property_stay_policies` (check-in/out primitives, fees, after-hours, ID/card requirements, terms text)
+- `property_cancellation_policies` (deterministic matching rules + long policy text + short summary template)
+
+Runtime usage:
+- `/offers/generate` loads property context and uses it for:
+  - cancellation policy selection (`roomTypeId + stay date + priority`)
+  - cancellation summary rendering from approved templates/rules
+  - time-aware cancellation messaging using `now + property timezone + check-in date`
+  - deadline-state copy (future deadline vs deadline passed)
+  - non-refundable override (`non_refundable` rate plans never show "free cancellation until ...")
+  - stay-policy-based enhancements/disclosures (late checkout, pet fee, smoking/after-hours/check-in requirements)
+- voice offer generation (`get_offers` path) uses the same cancellation policy selector/summary renderer.
+
+Populate sample property context:
+```bash
+pnpm stub:property:inn-mount-shasta
+```
+
+Optional seasonal-suite mapping (recommended):
+```bash
+SUITE_ROOM_TYPE_IDS=RT_PREMIER_SUITE,RT_FAMILY_SUITE,RT_BUNK_SUITE pnpm stub:property:inn-mount-shasta
+```
 
 ## API Surface
 
@@ -91,7 +122,11 @@ pnpm dev
   - Supported request shapes:
     - Canonical top-level (recommended): `{ property_id, channel, check_in, check_out, adults, rooms, ... }`
     - Compatibility shim: `{ slots: { ... } }`
-  - Defaults when omitted: `property_id="demo_property"`, `channel="voice"`
+  - Property resolution:
+    - if `property_id` exists in DB, that property is used
+    - if `property_id` is omitted or unknown and at least one DB property exists, the first property is used
+    - if no properties exist, falls back to v1 defaults (`property_id="demo_property"`)
+  - Channel default when omitted: `channel="voice"`
   - Response: `{ data: { propertyId, channel, currency, priceBasisUsed, offers, fallbackAction?, presentationHints, decisionTrace, configVersion } }`
   - Validation errors:
     - `400` for invalid request schema/body
@@ -192,7 +227,9 @@ The commerce engine runs this deterministic pipeline:
 6. Attach enhancements
 - Enhancements are attached after base ranking and do not alter selection.
 - Family/space -> breakfast (`info`)
-- Late-arrival/urgent -> late checkout (`request` + disclosure)
+- Late-arrival/urgent -> late checkout (`request` + disclosure), amount/time from `property_stay_policies` when configured
+- Pet fee can be attached as policy-driven `info` enhancement from `property_stay_policies`
+- Policy disclosures (after-hours arrival, smoking penalties, check-in requirements) are attached from property context
 
 7. Fallback matrix
 - If fewer than 2 offers remain, fallback action is selected from a deterministic channel/capability matrix.
@@ -234,6 +271,12 @@ The commerce engine runs this deterministic pipeline:
   - `balanced`: `<=25%` and `<= $300`
   - `fill_rooms`: `<=35%` and `<= $400`
 - Enhancements are attached post-selection and never alter base ranking.
+- Cancellation summary rendering rules:
+  - `non_refundable` offers always render non-refundable cancellation copy.
+  - For refundable offers with a property policy, the engine computes local cancellation deadline:
+    - `deadline = check-in date at cutoff time - freeCancelDaysBefore`
+  - If `now` (in property timezone) is after deadline, summary uses deadline-passed wording and penalty outcome.
+  - If deadline is in the future, summary uses "Free cancellation until <local date/time>" wording.
 
 ### Fallback Matrix (v1)
 
@@ -261,6 +304,10 @@ The commerce engine runs this deterministic pipeline:
   - `offers[].pricing` is basis-aware:
     - `afterTax` / `beforeTaxPlusTaxes`: `{ basis, total, totalAfterTax }`
     - `beforeTax`: `{ basis, total }`
+  - `offers[].policy.cancellationSummary` is:
+    - time-aware for refundable plans (deadline future/past aware)
+    - always non-refundable wording for non-refundable plans
+  - `offers[].disclosures` may include policy-required notes (after-hours, smoking, check-in requirements)
 - `fallbackAction` (when fewer than 2 offers remain)
 - `presentationHints` (includes structured urgency when sourced)
 - `decisionTrace` (human-readable deterministic reasons)
@@ -435,7 +482,7 @@ Prisma models include:
 - Better Auth tables (`users`, `auth_sessions`, `auth_accounts`, `auth_verifications`)
 - Commerce support tables:
   - `properties`
-  - `property_hours`
+  - `property_front_desk_hours`
   - `property_commerce_config`
   - `room_tier_overrides`
 
@@ -443,6 +490,7 @@ Recent migration:
 - `prisma/migrations/20260209123000_add_property_hours/migration.sql`
 - `prisma/migrations/20260210182000_add_commerce_config/migration.sql`
 - `prisma/migrations/20260210184000_add_capability_fields/migration.sql`
+- `prisma/migrations/20260210130500_rename_property_hours_to_front_desk_hours/migration.sql`
 
 ## Project Structure
 

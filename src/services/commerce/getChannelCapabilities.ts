@@ -20,16 +20,16 @@ export const getChannelCapabilities = async (
     const property = await prisma.property.findUnique({
       where: { id: propertyId },
       include: {
-        hours: true,
+        frontDeskHours: true,
       },
     });
 
-    const hasHoursConfig = Boolean(property?.timezone) && (property?.hours.length ?? 0) > 0;
+    const hasHoursConfig = Boolean(property?.timezone) && (property?.frontDeskHours.length ?? 0) > 0;
     const isOpenNow = hasHoursConfig
       ? isPropertyOpenAt({
           nowUtc: new Date(),
           timezone: property?.timezone ?? "UTC",
-          intervals: (property?.hours ?? []).map((hour) => ({
+          intervals: (property?.frontDeskHours ?? []).map((hour) => ({
             dayOfWeek: hour.dayOfWeek,
             openTime: hour.openTime,
             closeTime: hour.closeTime,

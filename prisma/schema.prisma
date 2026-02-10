@@ -12,6 +12,11 @@ enum Role {
   ADMIN
 }
 
+enum CancellationPenaltyType {
+  FIRST_NIGHT_PLUS_TAX
+  PERCENT_OF_STAY
+}
+
 model User {
   id            String          @id @default(cuid())
   email         String          @unique
@@ -28,19 +33,34 @@ model User {
 }
 
 model Property {
-  id              String         @id
-  timezone        String
-  defaultCurrency String         @map("default_currency")
-  createdAt       DateTime       @default(now()) @map("created_at")
-  updatedAt       DateTime       @updatedAt @map("updated_at")
-  hours           PropertyHours[]
-  commerceConfig  PropertyCommerceConfig?
-  roomTierOverrides RoomTierOverride[]
+  id                 String                      @id
+  pmsProvider        String?                     @map("pms_provider")
+  pmsPropertyId      String?                     @map("pms_property_id")
+  name               String?
+  timezone           String
+  defaultCurrency    String                      @map("default_currency")
+  addressLine1       String?                     @map("address_line1")
+  city               String?
+  state              String?
+  postalCode         String?                     @map("postal_code")
+  country            String?
+  phone              String?
+  email              String?
+  createdAt          DateTime                    @default(now()) @map("created_at")
+  updatedAt          DateTime                    @updatedAt @map("updated_at")
+  frontDeskHours     PropertyFrontDeskHours[]
+  commerceConfig     PropertyCommerceConfig?
+  roomTierOverrides  RoomTierOverride[]
+  content            PropertyContent?
+  amenities          PropertyAmenity[]
+  stayPolicy         PropertyStayPolicy?
+  cancellationPolicies PropertyCancellationPolicy[]
 
+  @@unique([pmsProvider, pmsPropertyId])
   @@map("properties")
 }
 
-model PropertyHours {
+model PropertyFrontDeskHours {
   id        String   @id @default(cuid())
   property  Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   propertyId String  @map("property_id")
@@ -51,7 +71,7 @@ model PropertyHours {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([propertyId, dayOfWeek])
-  @@map("property_hours")
+  @@map("property_front_desk_hours")
 }
 
 model PropertyCommerceConfig {
@@ -85,6 +105,82 @@ model RoomTierOverride {
 
   @@unique([propertyId, roomTypeId])
   @@map("room_tier_overrides")
+}
+
+model PropertyContent {
+  property         Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId       String   @id @map("property_id")
+  overviewMarketing String? @map("overview_marketing")
+  neighborhoodHighlights Json? @map("neighborhood_highlights")
+  vibeTags         String[] @default([]) @map("vibe_tags")
+  version          Int      @default(1)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("property_content")
+}
+
+model PropertyAmenity {
+  id         String   @id @default(cuid())
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId String   @map("property_id")
+  key        String
+  detailsJson Json?   @map("details_json")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([propertyId, key])
+  @@map("property_amenities")
+}
+
+model PropertyStayPolicy {
+  property                        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId                      String   @id @map("property_id")
+  checkInTime                     String?  @map("check_in_time")
+  checkOutTime                    String?  @map("check_out_time")
+  lateCheckoutTime                String?  @map("late_checkout_time")
+  lateCheckoutFeeCents            Int?     @map("late_checkout_fee_cents")
+  lateCheckoutCurrency            String?  @map("late_checkout_currency")
+  afterHoursArrivalCutoff         String?  @map("after_hours_arrival_cutoff")
+  afterHoursArrivalInstructions   String?  @map("after_hours_arrival_instructions")
+  smokingPenaltyCents             Int?     @map("smoking_penalty_cents")
+  smokingPenaltyCurrency          String?  @map("smoking_penalty_currency")
+  petFeePerNightCents             Int?     @map("pet_fee_per_night_cents")
+  petFeeCurrency                  String?  @map("pet_fee_currency")
+  petPolicyRequiresNoteAtBooking  Boolean  @default(false) @map("pet_policy_requires_note_at_booking")
+  dogFriendlyRoomsLimited         Boolean  @default(false) @map("dog_friendly_rooms_limited")
+  idRequired                      Boolean  @default(true) @map("id_required")
+  creditCardRequired              Boolean  @default(true) @map("credit_card_required")
+  termsText                       String?  @map("terms_text")
+  version                         Int      @default(1)
+  createdAt                       DateTime @default(now()) @map("created_at")
+  updatedAt                       DateTime @updatedAt @map("updated_at")
+
+  @@map("property_stay_policies")
+}
+
+model PropertyCancellationPolicy {
+  id                      String                  @id @default(cuid())
+  property                Property                @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId              String                  @map("property_id")
+  name                    String
+  appliesToRoomTypeIds    String[]                @default([]) @map("applies_to_room_type_ids")
+  effectiveStartMonthDay  String?                 @map("effective_start_month_day")
+  effectiveEndMonthDay    String?                 @map("effective_end_month_day")
+  freeCancelDaysBefore    Int                     @map("free_cancel_days_before")
+  freeCancelCutoffTime    String                  @map("free_cancel_cutoff_time")
+  penaltyType             CancellationPenaltyType @map("penalty_type")
+  penaltyValue            Int?                    @map("penalty_value")
+  chargeHoursBeforeArrival Int?                   @map("charge_hours_before_arrival")
+  policyTextLong          String?                 @map("policy_text_long")
+  policySummaryTemplate   String?                 @map("policy_summary_template")
+  priority                Int                     @default(100)
+  version                 Int                     @default(1)
+  createdAt               DateTime                @default(now()) @map("created_at")
+  updatedAt               DateTime                @updatedAt @map("updated_at")
+
+  @@index([propertyId, priority])
+  @@map("property_cancellation_policies")
 }
 
 model AuthSession {

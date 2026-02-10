@@ -41,6 +41,7 @@ export type CommerceOffer = {
     };
   } | null;
   enhancements?: CommerceEnhancement[];
+  disclosures?: string[];
 };
 
 export type CommerceFallbackAction = {

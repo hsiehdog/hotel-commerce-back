@@ -20,9 +20,15 @@ const isStrategyMode = (value: string): value is StrategyMode =>
 
 export const getPropertyStrategy = async (propertyId: string): Promise<PropertyStrategy> => {
   try {
-    const config = await prisma.propertyCommerceConfig.findUnique({
-      where: { propertyId },
-    });
+    const [config, property] = await Promise.all([
+      prisma.propertyCommerceConfig.findUnique({
+        where: { propertyId },
+      }),
+      prisma.property.findUnique({
+        where: { id: propertyId },
+        select: { defaultCurrency: true },
+      }),
+    ]);
 
     if (!config) {
       return {
@@ -33,6 +39,7 @@ export const getPropertyStrategy = async (propertyId: string): Promise<PropertyS
         enableTransferFrontDesk: true,
         enableWaitlist: true,
         webBookingUrl: "https://example.com/book",
+        defaultCurrency: property?.defaultCurrency ?? "USD",
         configVersion: 1,
       };
     }
@@ -41,7 +48,7 @@ export const getPropertyStrategy = async (propertyId: string): Promise<PropertyS
       strategyMode: isStrategyMode(config.strategyMode) ? config.strategyMode : "balanced",
       upsellPosture: config.upsellPosture,
       cancellationSensitivity: config.cancellationSensitivity,
-      defaultCurrency: config.defaultCurrency,
+      defaultCurrency: config.defaultCurrency ?? property?.defaultCurrency ?? null,
       urgencyEnabled: config.urgencyEnabled,
       allowedUrgencyTypes: parseAllowedUrgencyTypes(config.allowedUrgencyTypes),
       enableTextLink: config.enableTextLink,

@@ -40,7 +40,7 @@ export type FallbackAction =
   | "collect_waitlist"
   | "suggest_alternate_dates";
 
-export type PropertyHoursInterval = {
+export type PropertyFrontDeskHoursInterval = {
   dayOfWeek: number;
   openTime: string;
   closeTime: string;
@@ -183,7 +183,7 @@ export const isPropertyOpenAt = ({
 }: {
   nowUtc: Date;
   timezone: string;
-  intervals: PropertyHoursInterval[];
+  intervals: PropertyFrontDeskHoursInterval[];
 }): boolean => {
   if (intervals.length === 0) {
     return false;
@@ -264,7 +264,7 @@ const getLocalParts = (nowUtc: Date, timezone: string): { dayOfWeek: number; min
   return { dayOfWeek, minutesOfDay: hour * 60 + minute };
 };
 
-const isOpenInCurrentDayInterval = (minutesOfDay: number, interval: PropertyHoursInterval): boolean => {
+const isOpenInCurrentDayInterval = (minutesOfDay: number, interval: PropertyFrontDeskHoursInterval): boolean => {
   const open = parseTime(interval.openTime);
   const close = parseTime(interval.closeTime);
   if (open === null || close === null) {

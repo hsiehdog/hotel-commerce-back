@@ -1,6 +1,10 @@
 import { prisma } from "../../lib/prisma";
 import { getCloudbedsAriRaw } from "../../integrations/cloudbeds/cloudbedsAriCache";
 import { normalizeAriRawToSnapshot } from "../../integrations/cloudbeds/cloudbedsNormalizer";
+import { getPropertyContext } from "../propertyContext/getPropertyContext";
+import { renderCancellationSummary } from "../propertyContext/renderCancellationSummary";
+import { selectCancellationPolicy } from "../propertyContext/selectCancellationPolicy";
+import type { PropertyContext } from "../propertyContext/types";
 import { finalizeCommerceProfileInventoryState } from "./buildCommerceProfile";
 import type { CommerceOffer, CommerceOfferResponse } from "./commerceContract";
 import { filterCandidates } from "./filterCandidates";
@@ -78,13 +82,17 @@ export const buildCommerceOffers = async ({
       profile: normalized.profile,
       roomsAvailable: primary?.roomsAvailable,
     });
+    const propertyContext = await getPropertyContext(normalized.propertyId);
 
     const offers = selected.map((candidate, index) =>
       toCommerceOffer({
         candidate,
         recommended: index === 0,
         profile: finalProfile,
+        checkIn: normalized.checkIn,
+        now: new Date(normalized.nowUtcIso),
         preferences: normalized.preferences,
+        propertyContext,
       }),
     );
 
@@ -193,12 +201,18 @@ const toCommerceOffer = ({
   candidate,
   recommended,
   profile,
+  checkIn,
+  now,
   preferences,
+  propertyContext,
 }: {
   candidate: ScoredCandidate;
   recommended: boolean;
   profile: { tripType: string; decisionPosture: string };
+  checkIn: string;
+  now: Date;
   preferences?: { needs_space?: boolean; late_arrival?: boolean };
+  propertyContext: PropertyContext | null;
 }): CommerceOffer => {
   const isSaver = candidate.archetype === "SAVER";
   const isBusinessLateArrivalDemo = Boolean(preferences?.late_arrival);
@@ -221,7 +235,14 @@ const toCommerceOffer = ({
     currency: candidate.currency,
     lateArrival: preferences?.late_arrival ?? false,
     needsSpace: preferences?.needs_space ?? false,
+    stayPolicy: propertyContext?.stayPolicy,
   });
+  const cancellationPolicy = selectCancellationPolicy({
+    policies: propertyContext?.cancellationPolicies ?? [],
+    checkIn,
+    roomTypeId: candidate.roomTypeId,
+  });
+  const disclosures = buildDisclosures(propertyContext);
 
   return {
     offerId: isBusinessLateArrivalDemo
@@ -246,9 +267,13 @@ const toCommerceOffer = ({
         ? isSaver
           ? "Non-refundable once booked."
           : "Free cancellation up to 24 hours before arrival."
-        : candidate.refundability === "refundable"
-          ? "You can cancel for free up to a day before check-in."
-          : "This one is non-refundable.",
+        : renderCancellationSummary({
+            policy: cancellationPolicy,
+            refundability: candidate.refundability === "refundable" ? "refundable" : "non_refundable",
+            checkInDate: checkIn,
+            propertyTimezone: propertyContext?.timezone ?? "UTC",
+            now,
+          }),
     },
     pricing:
       candidate.price.basis === "beforeTax"
@@ -260,9 +285,10 @@ const toCommerceOffer = ({
             basis: candidate.price.basis,
             total: round2(candidate.price.amount),
             totalAfterTax: round2(candidate.price.amount),
-          },
+    },
     urgency,
     enhancements: enhancements.length > 0 ? enhancements : undefined,
+    disclosures: disclosures.length > 0 ? disclosures : undefined,
   };
 };
 
@@ -273,6 +299,7 @@ const buildEnhancements = ({
   currency,
   lateArrival,
   needsSpace,
+  stayPolicy,
 }: {
   recommended: boolean;
   tripType: string;
@@ -280,6 +307,7 @@ const buildEnhancements = ({
   currency: string;
   lateArrival: boolean;
   needsSpace: boolean;
+  stayPolicy?: PropertyContext["stayPolicy"];
 }) => {
   if (!recommended) {
     return [];
@@ -297,17 +325,75 @@ const buildEnhancements = ({
   }
 
   if (lateArrival || decisionPosture === "urgent") {
+    const lateCheckoutAmount = centsToDollars(stayPolicy?.lateCheckoutFeeCents) ?? 35;
+    const lateCheckoutCurrency = stayPolicy?.lateCheckoutCurrency ?? currency;
+    const lateCheckoutTime = formatTime(stayPolicy?.lateCheckoutTime) ?? "2:00 PM";
     enhancements.push({
       id: "addon_late_checkout",
-      name: "Late checkout (2pm)",
-      price: { type: "perStay", amount: 35, currency },
+      name: `Late checkout (${lateCheckoutTime})`,
+      price: { type: "perStay", amount: lateCheckoutAmount, currency: lateCheckoutCurrency },
       availability: "request",
       whyShown: "business_efficiency",
       disclosure: "Subject to availability at check-in.",
     });
   }
 
-  return enhancements.slice(0, 2);
+  const petFeeAmount = centsToDollars(stayPolicy?.petFeePerNightCents);
+  if (petFeeAmount !== null) {
+    enhancements.push({
+      id: "fee_pet_per_night",
+      name: "Dog fee (if bringing a dog)",
+      price: {
+        type: "perNight",
+        amount: petFeeAmount,
+        currency: stayPolicy?.petFeeCurrency ?? currency,
+      },
+      availability: "info",
+      whyShown: "policy_pet_fee",
+      disclosure: stayPolicy?.petPolicyRequiresNoteAtBooking
+        ? "Dog-friendly rooms are limited and must be noted at booking."
+        : "Pet fee applies when bringing a dog.",
+    });
+  }
+
+  return enhancements.slice(0, 3);
+};
+
+const buildDisclosures = (propertyContext: PropertyContext | null): string[] => {
+  const disclosures: string[] = [];
+  const stayPolicy = propertyContext?.stayPolicy;
+  if (!stayPolicy) {
+    return disclosures;
+  }
+
+  if (stayPolicy.afterHoursArrivalCutoff) {
+    const cutoff = formatTime(stayPolicy.afterHoursArrivalCutoff) ?? stayPolicy.afterHoursArrivalCutoff;
+    const instructions = stayPolicy.afterHoursArrivalInstructions?.trim();
+    disclosures.push(
+      instructions && instructions.length > 0
+        ? `If arriving after ${cutoff}, ${instructions}`
+        : `If arriving after ${cutoff}, please contact the hotel directly to make arrangements.`,
+    );
+  }
+
+  if (stayPolicy.smokingPenaltyCents) {
+    const smokingAmount = centsToDollars(stayPolicy.smokingPenaltyCents);
+    const smokingCurrency = stayPolicy.smokingPenaltyCurrency ?? propertyContext?.defaultCurrency ?? "USD";
+    disclosures.push(`Non-smoking property. Smoking incurs a minimum ${smokingCurrency} ${smokingAmount} charge.`);
+  }
+
+  if (stayPolicy.idRequired || stayPolicy.creditCardRequired) {
+    const requirements: string[] = [];
+    if (stayPolicy.idRequired) {
+      requirements.push("photo ID");
+    }
+    if (stayPolicy.creditCardRequired) {
+      requirements.push("credit card");
+    }
+    disclosures.push(`At check-in, guests must present ${requirements.join(" and ")}.`);
+  }
+
+  return disclosures;
 };
 
 const buildProfileReasonCodes = (
@@ -410,6 +496,22 @@ const getRoomTierOverrides = async (propertyId: string): Promise<Record<string, 
 
 const normalizeId = (value: string): string => value.toLowerCase();
 const round2 = (value: number): number => Math.round(value * 100) / 100;
+const centsToDollars = (value?: number | null): number | null =>
+  typeof value === "number" ? round2(value / 100) : null;
+const formatTime = (value?: string | null): string | null => {
+  if (!value) {
+    return null;
+  }
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value);
+  if (!match) {
+    return null;
+  }
+  const hours = Number(match[1]);
+  const minutes = match[2];
+  const suffix = hours >= 12 ? "PM" : "AM";
+  const hour12 = hours % 12 || 12;
+  return `${hour12}:${minutes} ${suffix}`;
+};
 
 const getRiskContributors = (
   candidate: ScoredCandidate,
