@@ -114,7 +114,7 @@ describe("commerce offers scenarios", () => {
     expect(payload.data.fallbackAction?.type).toBe("text_booking_link");
   });
 
-  it("currency mismatch keeps safe offer and returns link fallback", async () => {
+  it("unknown property_id falls back to demo_property defaults", async () => {
     const req = {
       body: {
         property_id: "cb_999",
@@ -132,10 +132,12 @@ describe("commerce offers scenarios", () => {
     await generateOffersForChannel(req, res, next as Parameters<typeof generateOffersForChannel>[2]);
     expect(next).not.toHaveBeenCalled();
     const payload = (res as unknown as { json: ReturnType<typeof vi.fn> }).json.mock.calls[0]?.[0] as {
-      data: { offers: Array<{ type: string }>; fallbackAction?: { type?: string } };
+      data: { propertyId: string; offers: Array<{ type: string }>; fallbackAction?: { type?: string } };
     };
-    expect(payload.data.offers).toHaveLength(1);
+    expect(payload.data.propertyId).toBe("demo_property");
+    expect(payload.data.offers).toHaveLength(2);
     expect(payload.data.offers[0]?.type).toBe("SAFE");
-    expect(payload.data.fallbackAction?.type).toBe("text_booking_link");
+    expect(payload.data.offers[1]?.type).toBe("SAVER");
+    expect(payload.data.fallbackAction).toBeUndefined();
   });
 });

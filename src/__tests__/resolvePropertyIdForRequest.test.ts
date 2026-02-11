@@ -6,7 +6,6 @@ describe("resolvePropertyIdForRequest", () => {
     const fakeClient = {
       property: {
         findUnique: async () => ({ id: "inn_at_mount_shasta" }),
-        findFirst: async () => null,
       },
     };
 
@@ -18,19 +17,18 @@ describe("resolvePropertyIdForRequest", () => {
     });
   });
 
-  it("falls back to first property when requested property does not exist", async () => {
+  it("falls back to demo_property when requested property does not exist", async () => {
     const fakeClient = {
       property: {
         findUnique: async () => null,
-        findFirst: async () => ({ id: "fallback_property" }),
       },
     };
 
     const resolved = await resolvePropertyIdForRequest("missing_property", fakeClient);
 
     expect(resolved).toEqual({
-      propertyId: "fallback_property",
-      propertyExists: true,
+      propertyId: "demo_property",
+      propertyExists: false,
     });
   });
 
@@ -38,7 +36,6 @@ describe("resolvePropertyIdForRequest", () => {
     const fakeClient = {
       property: {
         findUnique: async () => null,
-        findFirst: async () => null,
       },
     };
 

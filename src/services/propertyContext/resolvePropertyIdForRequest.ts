@@ -8,7 +8,6 @@ export type ResolvedProperty = {
 type PropertyLookupClient = {
   property: {
     findUnique: (args: { where: { id: string }; select: { id: true } }) => Promise<{ id: string } | null>;
-    findFirst: (args: { orderBy: { createdAt: "asc" }; select: { id: true } }) => Promise<{ id: string } | null>;
   };
 };
 
@@ -26,20 +25,12 @@ export const resolvePropertyIdForRequest = async (
         return { propertyId: requested.id, propertyExists: true };
       }
     }
-
-    const firstProperty = await client.property.findFirst({
-      orderBy: { createdAt: "asc" },
-      select: { id: true },
-    });
-    if (firstProperty) {
-      return { propertyId: firstProperty.id, propertyExists: true };
-    }
   } catch {
     // Fall through to existing v1 default behavior.
   }
 
   return {
-    propertyId: requestedPropertyId ?? "demo_property",
+    propertyId: "demo_property",
     propertyExists: false,
   };
 };

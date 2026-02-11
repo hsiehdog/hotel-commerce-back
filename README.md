@@ -118,14 +118,13 @@ SUITE_ROOM_TYPE_IDS=RT_PREMIER_SUITE,RT_FAMILY_SUITE,RT_BUNK_SUITE pnpm stub:pro
 
 ### Offers
 
-- `POST /offers/generate` (auth required)
+- `POST /offers/generate` (no auth required)
   - Supported request shapes:
     - Canonical top-level (recommended): `{ property_id, channel, check_in, check_out, adults, rooms, ... }`
     - Compatibility shim: `{ slots: { ... } }`
   - Property resolution:
     - if `property_id` exists in DB, that property is used
-    - if `property_id` is omitted or unknown and at least one DB property exists, the first property is used
-    - if no properties exist, falls back to v1 defaults (`property_id="demo_property"`)
+    - if `property_id` is omitted or unknown, falls back to v1 defaults (`property_id="demo_property"`)
   - Channel default when omitted: `channel="voice"`
   - Response: `{ data: { propertyId, channel, currency, priceBasisUsed, offers, fallbackAction?, presentationHints, decisionTrace, configVersion } }`
   - Validation errors:
@@ -338,18 +337,16 @@ These scenarios are for local testing and decision-engine verification.
 
 ## Manual Offer Testing
 
-`/offers/generate` requires a valid Better Auth session cookie.
+`/offers/generate` is public in the current local setup (no Better Auth session cookie required).
 
 ```bash
 BASE_URL=http://localhost:4000
-SESSION_COOKIE='better-auth.session_token=...'
 ```
 
 Standard request (canonical top-level):
 ```bash
 curl -sS "$BASE_URL/offers/generate" \
   -H "Content-Type: application/json" \
-  -H "Cookie: $SESSION_COOKIE" \
   -d '{
     "property_id": "demo_property",
     "channel": "voice",
@@ -364,7 +361,6 @@ Scenario request example:
 ```bash
 curl -sS "$BASE_URL/offers/generate" \
   -H "Content-Type: application/json" \
-  -H "Cookie: $SESSION_COOKIE" \
   -d '{
     "property_id": "cb_999",
     "channel": "voice",
@@ -384,7 +380,6 @@ Use these requests to verify decision-engine behavior.
 ```bash
 curl -sS "$BASE_URL/offers/generate" \
   -H "Content-Type: application/json" \
-  -H "Cookie: $SESSION_COOKIE" \
   -d '{
     "property_id": "cb_123",
     "channel": "voice",
@@ -405,7 +400,6 @@ Expected:
 ```bash
 curl -sS "$BASE_URL/offers/generate" \
   -H "Content-Type: application/json" \
-  -H "Cookie: $SESSION_COOKIE" \
   -d '{
     "property_id": "cb_123",
     "channel": "voice",
@@ -423,7 +417,6 @@ Expected:
 ```bash
 curl -sS "$BASE_URL/offers/generate" \
   -H "Content-Type: application/json" \
-  -H "Cookie: $SESSION_COOKIE" \
   -d '{
     "property_id": "cb_123",
     "channel": "voice",
@@ -443,7 +436,6 @@ Expected:
 ```bash
 curl -sS "$BASE_URL/offers/generate" \
   -H "Content-Type: application/json" \
-  -H "Cookie: $SESSION_COOKIE" \
   -d '{
     "property_id": "cb_123",
     "channel": "voice",
@@ -461,7 +453,6 @@ Expected:
 ```bash
 curl -sS "$BASE_URL/offers/generate" \
   -H "Content-Type: application/json" \
-  -H "Cookie: $SESSION_COOKIE" \
   -d '{
     "property_id": "cb_999",
     "channel": "voice",
