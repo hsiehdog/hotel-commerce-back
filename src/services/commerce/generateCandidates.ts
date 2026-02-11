@@ -15,6 +15,8 @@ export const generateCandidates = (
         candidates.push({
           roomTypeId: roomType.roomTypeId,
           roomTypeName: roomType.roomTypeName,
+          roomTypeDescription: roomType.roomTypeDescription,
+          features: roomType.features,
           roomsAvailable: roomType.roomsAvailable,
           maxOccupancy: roomType.maxOccupancy,
           roomTier,
@@ -38,6 +40,8 @@ export const generateCandidates = (
       candidates.push({
         roomTypeId: roomType.roomTypeId,
         roomTypeName: roomType.roomTypeName,
+        roomTypeDescription: roomType.roomTypeDescription,
+        features: roomType.features,
         roomsAvailable: roomType.roomsAvailable,
         maxOccupancy: roomType.maxOccupancy,
         roomTier,

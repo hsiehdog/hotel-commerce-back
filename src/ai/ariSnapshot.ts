@@ -10,6 +10,8 @@ export type AriSnapshot = {
 export type RoomTypeSnapshot = {
   roomTypeId: string;
   roomTypeName: string;
+  roomTypeDescription?: string;
+  features?: string[];
   maxOccupancy: number;
   roomsAvailable: number;
   totalInventory?: number | null;

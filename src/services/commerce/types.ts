@@ -75,6 +75,8 @@ export type NormalizedOfferRequest = {
 export type Candidate = {
   roomTypeId: string;
   roomTypeName: string;
+  roomTypeDescription?: string;
+  features?: string[];
   roomsAvailable?: number;
   maxOccupancy?: number;
   roomTier: "standard" | "deluxe" | "suite";

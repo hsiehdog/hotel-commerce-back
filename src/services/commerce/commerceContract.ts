@@ -106,6 +106,9 @@ export type CommerceOfferResponse = {
     reasonCodes: string[];
     topCandidates: Array<{
       roomTypeId: string;
+      roomTypeName: string;
+      roomTypeDescription?: string;
+      features?: string[];
       ratePlanId: string;
       roomsAvailable?: number;
       riskContributors: Array<"NON_REFUNDABLE" | "PAY_NOW" | "LOW_INVENTORY">;

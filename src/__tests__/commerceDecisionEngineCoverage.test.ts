@@ -27,7 +27,12 @@ type OfferResponsePayload = {
       resolvedRequest?: {
         roomOccupancies?: Array<{ adults: number; children: number }>;
       };
-      topCandidates?: Array<{ basis: string }>;
+      topCandidates?: Array<{
+        basis: string;
+        roomTypeName?: string;
+        roomTypeDescription?: string;
+        features?: string[];
+      }>;
     };
   };
 };
@@ -62,6 +67,9 @@ describe("commerce decision engine coverage", () => {
     expect(payload.data.debug?.reasonCodes).toContain("SELECT_PRIMARY_SAFE");
     expect(payload.data.debug?.reasonCodes).toContain("SELECT_SECONDARY_SAVER");
     expect(payload.data.debug?.profileFinal?.inventoryState).toBe("normal");
+    expect(payload.data.debug?.topCandidates?.[0]?.roomTypeName).toBeTruthy();
+    expect(payload.data.debug?.topCandidates?.[0]?.roomTypeDescription).toBeTruthy();
+    expect((payload.data.debug?.topCandidates?.[0]?.features?.length ?? 0) > 0).toBe(true);
   });
 
   it("saver-primary exception triggers under low inventory and can leave 1 offer", async () => {

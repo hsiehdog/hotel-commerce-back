@@ -34,6 +34,8 @@ export type CloudbedsAriRaw = {
 export type CloudbedsRoomTypeRaw = {
   roomTypeId: string;
   roomTypeName: string;
+  roomTypeDescription?: string;
+  features?: string[];
   maxOccupancy: number;
   roomsAvailable: number;
   totalInventory?: number | null;
@@ -91,6 +93,8 @@ export const getAriRaw = (request: CloudbedsAriRequest): CloudbedsAriRaw => {
     roomTypes: ratePlansResponse.roomTypes.map((roomType) => ({
       roomTypeId: roomType.roomTypeID,
       roomTypeName: roomType.roomTypeName,
+      roomTypeDescription: roomType.roomTypeDescription,
+      features: roomType.features,
       maxOccupancy: roomType.maxOccupancy,
       roomsAvailable: roomType.roomsAvailable,
       totalInventory: roomType.totalInventory ?? null,

@@ -43,6 +43,8 @@ export type CloudbedsGetRatePlansResponse = {
 export type CloudbedsGetRatePlansRoomType = {
   roomTypeID: string;
   roomTypeName: string;
+  roomTypeDescription?: string;
+  features?: string[];
   maxOccupancy: number;
   roomsAvailable: number;
   totalInventory?: number | null;
@@ -198,6 +200,8 @@ const buildRoomTypeForScenario = (
   return {
     roomTypeID: roomType.roomTypeId,
     roomTypeName: isBusinessLateArrivalDemo && roomType.roomTypeId === "RT_KING" ? "Standard King" : roomType.roomTypeName,
+    roomTypeDescription: roomType.roomTypeDescription,
+    features: roomType.features,
     maxOccupancy: roomType.maxOccupancy,
     roomsAvailable: isCompressionWeekend ? Math.min(1, roomType.roomsAvailable) : roomType.roomsAvailable,
     totalInventory: roomType.roomsAvailable + 9,

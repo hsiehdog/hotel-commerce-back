@@ -150,6 +150,9 @@ export const buildCommerceOffers = async ({
             reasonCodes,
             topCandidates: scored.slice(0, 10).map((candidate) => ({
               roomTypeId: candidate.roomTypeId,
+              roomTypeName: candidate.roomTypeName,
+              roomTypeDescription: candidate.roomTypeDescription,
+              features: candidate.features,
               ratePlanId: candidate.ratePlanId,
               roomsAvailable: candidate.roomsAvailable,
               riskContributors: getRiskContributors(candidate),
