@@ -1,4 +1,5 @@
 import type { AriSnapshot } from "../../ai/ariSnapshot";
+import { calendarDayDiff } from "../../utils/dateTime";
 import type { CloudbedsAriRaw } from "./cloudbedsClient";
 
 export const normalizeAriRawToSnapshot = (raw: CloudbedsAriRaw): AriSnapshot => {
@@ -51,10 +52,7 @@ export const normalizeAriRawToSnapshot = (raw: CloudbedsAriRaw): AriSnapshot => 
 };
 
 const diffDays = (start: string, end: string): number => {
-  const startDate = new Date(`${start}T00:00:00Z`);
-  const endDate = new Date(`${end}T00:00:00Z`);
-  const diffMs = endDate.getTime() - startDate.getTime();
-  return Math.max(1, Math.round(diffMs / (24 * 60 * 60 * 1000)));
+  return Math.max(1, calendarDayDiff(end, start));
 };
 
 const round2 = (value: number): number => Math.round(value * 100) / 100;

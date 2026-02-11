@@ -1,3 +1,5 @@
+import { addDaysToIsoDate, dayOfWeekFromIsoDate, formatInZone, isValidDate, parseIsoDate } from "../utils/dateTime";
+
 type RelativeDateResult = { phrase: string; assumed: string; today: string };
 
 type DateNormalizationResult =
@@ -123,8 +125,7 @@ const resolveWeekday = (todayIso: string, weekday: string, mode: string): string
   const targetDow = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"].indexOf(
     weekday,
   );
-  const todayDate = new Date(`${todayIso}T00:00:00Z`);
-  const todayDow = todayDate.getUTCDay();
+  const todayDow = dayOfWeekFromIsoDate(todayIso);
   let delta = (targetDow - todayDow + 7) % 7;
 
   if (mode === "next") {
@@ -164,57 +165,29 @@ const getMonthYear = (now: Date, timezone: string): { year: number; month: numbe
 };
 
 const getDateParts = (now: Date, timezone: string): { year: number; month: number; day: number } => {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-
-  const parts = formatter.formatToParts(now);
-  const lookup = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const rendered = formatInZone(now, timezone, "yyyy-MM-dd");
+  const parts = rendered.split("-");
+  const year = Number(parts[0] ?? "1970");
+  const month = Number(parts[1] ?? "1");
+  const day = Number(parts[2] ?? "1");
 
   return {
-    year: Number(lookup.year),
-    month: Number(lookup.month),
-    day: Number(lookup.day),
+    year: Number.isFinite(year) ? year : 1970,
+    month: Number.isFinite(month) ? month : 1,
+    day: Number.isFinite(day) ? day : 1,
   };
 };
 
 const pad2 = (value: number): string => value.toString().padStart(2, "0");
 
 const addDays = (isoDate: string, days: number): string => {
-  const base = new Date(`${isoDate}T00:00:00Z`);
-  base.setUTCDate(base.getUTCDate() + days);
-  return base.toISOString().slice(0, 10);
+  return addDaysToIsoDate(isoDate, days);
 };
 
 export const formatDateForSpeech = (isoDate: string, timezone: string): string => {
-  const parts = isoDate.split("-");
-  if (parts.length !== 3) {
+  const date = parseIsoDate(`${isoDate}T12:00:00Z`);
+  if (!isValidDate(date)) {
     return isoDate;
   }
-  const [yearStr, monthStr, dayStr] = parts;
-  const year = Number(yearStr);
-  const month = Number(monthStr);
-  const day = Number(dayStr);
-  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
-    return isoDate;
-  }
-
-  // Use noon UTC to avoid timezone shifting the local date.
-  const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-  if (Number.isNaN(date.getTime())) {
-    return isoDate;
-  }
-
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-
-  return formatter.format(date);
+  return formatInZone(date, timezone, "EEEE, MMMM d, yyyy");
 };

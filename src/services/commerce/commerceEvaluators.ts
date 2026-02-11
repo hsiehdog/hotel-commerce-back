@@ -1,4 +1,5 @@
 import type { RatePlanSnapshot, RoomTypeSnapshot } from "../../ai/ariSnapshot";
+import { calendarDayDiff, getLocalDayAndMinutes } from "../../utils/dateTime";
 import {
   ATTRIBUTION_TIME_WINDOW_HOURS,
   DATE_SHIFT_TOLERANCE_DAYS,
@@ -249,19 +250,7 @@ export const resolveAttributedClick = ({
 };
 
 const getLocalParts = (nowUtc: Date, timezone: string): { dayOfWeek: number; minutesOfDay: number } => {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    weekday: "short",
-    hour12: false,
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const parts = formatter.formatToParts(nowUtc);
-  const weekday = parts.find((part) => part.type === "weekday")?.value ?? "Sun";
-  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? "0");
-  const minute = Number(parts.find((part) => part.type === "minute")?.value ?? "0");
-  const dayOfWeek = dayFromWeekday(weekday);
-  return { dayOfWeek, minutesOfDay: hour * 60 + minute };
+  return getLocalDayAndMinutes(nowUtc, timezone);
 };
 
 const isOpenInCurrentDayInterval = (minutesOfDay: number, interval: PropertyFrontDeskHoursInterval): boolean => {
@@ -289,24 +278,8 @@ const parseTime = (value: string): number | null => {
   return hours * 60 + minutes;
 };
 
-const dayFromWeekday = (weekday: string): number => {
-  const map: Record<string, number> = {
-    Sun: 0,
-    Mon: 1,
-    Tue: 2,
-    Wed: 3,
-    Thu: 4,
-    Fri: 5,
-    Sat: 6,
-  };
-  return map[weekday] ?? 0;
-};
-
 const dateDifferenceDays = (left: string, right: string): number => {
-  const leftDate = new Date(`${left}T00:00:00Z`);
-  const rightDate = new Date(`${right}T00:00:00Z`);
-  const diffMs = Math.abs(leftDate.getTime() - rightDate.getTime());
-  return Math.round(diffMs / (24 * 60 * 60 * 1000));
+  return Math.abs(calendarDayDiff(left, right));
 };
 
 const toFiniteNumber = (value: number | null | undefined): number | null => {

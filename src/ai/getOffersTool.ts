@@ -1,4 +1,5 @@
 import { OfferIntent } from "./offerIntent";
+import { calendarDayDiff } from "../utils/dateTime";
 import type { AriSnapshot, RoomTypeSnapshot } from "./ariSnapshot";
 import { formatDateForSpeech, normalizeCheckOut, normalizeDate } from "./dateResolution";
 import { coerceOfferSlotsInput, type OfferSlotsInput } from "../offers/offerSchema";
@@ -333,10 +334,7 @@ const resolveNights = (slots: OfferIntent): number => {
   }
 
   if (slots.check_in && slots.check_out) {
-    const start = new Date(`${slots.check_in}T00:00:00Z`);
-    const end = new Date(`${slots.check_out}T00:00:00Z`);
-    const diffMs = end.getTime() - start.getTime();
-    const diffDays = Math.round(diffMs / (24 * 60 * 60 * 1000));
+    const diffDays = calendarDayDiff(slots.check_out, slots.check_in);
     return Math.max(1, diffDays);
   }
 

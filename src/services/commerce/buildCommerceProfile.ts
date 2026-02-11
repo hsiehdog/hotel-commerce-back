@@ -1,4 +1,5 @@
 import type { CommerceProfile, DecisionPosture, InventoryState, TripType } from "./types";
+import { dayOfWeekFromIsoDate } from "../../utils/dateTime";
 
 type PreProfileInput = {
   adults: number;
@@ -99,11 +100,11 @@ const resolveDecisionPosture = (
 };
 
 const isWeekend = (isoDate: string): boolean => {
-  const day = new Date(`${isoDate}T00:00:00Z`).getUTCDay();
+  const day = dayOfWeekFromIsoDate(isoDate);
   return day === 5 || day === 6;
 };
 
 const isWeekday = (isoDate: string): boolean => {
-  const day = new Date(`${isoDate}T00:00:00Z`).getUTCDay();
+  const day = dayOfWeekFromIsoDate(isoDate);
   return day >= 1 && day <= 4;
 };

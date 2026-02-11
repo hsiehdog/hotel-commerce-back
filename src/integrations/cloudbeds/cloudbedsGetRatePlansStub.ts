@@ -1,3 +1,4 @@
+import { addDaysToIsoDate, calendarDayDiff } from "../../utils/dateTime";
 import {
   CLOUDBEDS_ARI_ASSUMPTIONS,
   CLOUDBEDS_ARI_RULES,
@@ -323,16 +324,11 @@ const resolveScenario = (request: CloudbedsGetRatePlansRequest): CloudbedsStubSc
 };
 
 const diffDays = (start: string, end: string): number => {
-  const startDate = new Date(`${start}T00:00:00Z`);
-  const endDate = new Date(`${end}T00:00:00Z`);
-  const diffMs = endDate.getTime() - startDate.getTime();
-  return Math.max(CLOUDBEDS_ARI_ASSUMPTIONS.defaultNights, Math.round(diffMs / (24 * 60 * 60 * 1000)));
+  return Math.max(CLOUDBEDS_ARI_ASSUMPTIONS.defaultNights, calendarDayDiff(end, start));
 };
 
 const addDays = (date: string, days: number): string => {
-  const base = new Date(`${date}T00:00:00Z`);
-  base.setUTCDate(base.getUTCDate() + days);
-  return base.toISOString().slice(0, 10);
+  return addDaysToIsoDate(date, days);
 };
 
 const sumRates = (rates: Array<{ date: string; rate: number }>): number =>

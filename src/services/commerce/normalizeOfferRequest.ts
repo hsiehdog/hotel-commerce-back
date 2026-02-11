@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ApiError } from "../../middleware/errorHandler";
+import { calendarDayDiff, formatInZone } from "../../utils/dateTime";
 import { buildCommerceProfilePreAri } from "./buildCommerceProfile";
 import { getChannelCapabilities } from "./getChannelCapabilities";
 import { getPropertyStrategy } from "./getPropertyStrategy";
@@ -120,7 +121,7 @@ export const normalizeOfferRequest = async (raw: OfferGenerateRequestV1): Promis
   }
 
   const now = new Date();
-  const leadTimeDays = Math.max(0, diffDays(now.toISOString().slice(0, 10), checkIn));
+  const leadTimeDays = Math.max(0, diffDays(formatInZone(now, "UTC", "yyyy-MM-dd"), checkIn));
   const profile = buildCommerceProfilePreAri({
     adults: totalAdults,
     children: totalChildren,
@@ -233,7 +234,5 @@ const normalizeRoomOccupancies = (
 };
 
 const diffDays = (start: string, end: string): number => {
-  const startDate = new Date(`${start}T00:00:00Z`);
-  const endDate = new Date(`${end}T00:00:00Z`);
-  return Math.round((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
+  return calendarDayDiff(end, start);
 };
