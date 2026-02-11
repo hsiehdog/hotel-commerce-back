@@ -79,10 +79,10 @@ describe("offer generation service", () => {
       return;
     }
 
-    expect(second.clarificationPrompt).toMatch(/not seeing availability/i);
+    expect(second.clarificationPrompt).toMatch(/rooms cannot exceed total guests/i);
   });
 
-  it("can promote saver as primary when accessible inventory is compressed and delta is large", async () => {
+  it("uses unified commerce selection behavior for saver_primary_accessible scenario", async () => {
     const first = await generateOffers({
       currentIntent: createEmptyOfferIntent(),
       args: {
@@ -123,8 +123,8 @@ describe("offer generation service", () => {
       return;
     }
 
-    expect(primary.rate_type).toBe("non_refundable");
-    expect(primary.commerce_metadata?.saverPrimaryExceptionApplied).toBe(true);
+    expect(primary.rate_type).toBe("flexible");
+    expect(primary.commerce_metadata?.saverPrimaryExceptionApplied).toBe(false);
   });
 
   it("drops mismatched currency candidates and can still return one valid offer", async () => {

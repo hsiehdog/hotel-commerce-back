@@ -15,7 +15,7 @@ export type CommerceOffer = {
   offerId: string;
   type: "SAFE" | "SAVER";
   recommended: boolean;
-  roomType: { id: string; name: string };
+  roomType: { id: string; name: string; description?: string; features?: string[] };
   ratePlan: { id: string; name: string };
   policy: {
     refundability: "refundable" | "non_refundable";

@@ -169,13 +169,11 @@ describe("commerce decision engine coverage", () => {
   it("restriction scenario filters candidates and uses fallback matrix", async () => {
     const req = {
       body: {
-        slots: {
-          check_in: "2026-05-23",
-          check_out: "2026-05-24",
-          adults: 2,
-          rooms: 1,
-          stub_scenario: "constraint_min_los",
-        },
+        check_in: "2026-05-23",
+        check_out: "2026-05-24",
+        adults: 2,
+        rooms: 1,
+        stub_scenario: "constraint_min_los",
         debug: true,
       },
     } as Parameters<typeof generateOffersForChannel>[0];

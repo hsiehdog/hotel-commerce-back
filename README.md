@@ -91,7 +91,7 @@ Runtime usage:
   - deadline-state copy (future deadline vs deadline passed)
   - non-refundable override (`non_refundable` rate plans never show "free cancellation until ...")
   - stay-policy-based enhancements/disclosures (late checkout, pet fee, smoking/after-hours/check-in requirements)
-- voice offer generation (`get_offers` path) uses the same cancellation policy selector/summary renderer.
+- voice `get_offers` now uses the same `buildCommerceOffers` decision engine as `/offers/generate` (single selection path).
 
 Populate sample property context:
 ```bash
@@ -119,9 +119,8 @@ SUITE_ROOM_TYPE_IDS=RT_PREMIER_SUITE,RT_FAMILY_SUITE,RT_BUNK_SUITE pnpm stub:pro
 ### Offers
 
 - `POST /offers/generate` (no auth required)
-  - Supported request shapes:
-    - Canonical top-level (recommended): `{ property_id, channel, check_in, check_out, adults, rooms, ... }`
-    - Compatibility shim: `{ slots: { ... } }`
+  - Request shape:
+    - Canonical top-level: `{ property_id, channel, check_in, check_out, adults, rooms, ... }`
   - Property resolution:
     - if `property_id` exists in DB, that property is used
     - if `property_id` is omitted or unknown, falls back to v1 defaults (`property_id="demo_property"`)
@@ -181,7 +180,7 @@ Core policy is deterministic and versioned.
 The commerce engine runs this deterministic pipeline:
 
 1. Normalize request
-- Convert wrapped/top-level payloads into one canonical request shape.
+- Validate top-level canonical payload and normalize into the internal request model.
 - Canonical request includes dates, occupancy, currency, strategy mode, capabilities, and profile pre-ARI.
 
 2. Build broad candidates
@@ -300,6 +299,7 @@ The commerce engine runs this deterministic pipeline:
 - `currency`
 - `priceBasisUsed`
 - `offers` (0-2)
+  - `offers[].roomType` may include `description` and `features` from room metadata
   - `offers[].pricing` is basis-aware:
     - `afterTax` / `beforeTaxPlusTaxes`: `{ basis, total, totalAfterTax }`
     - `beforeTax`: `{ basis, total }`

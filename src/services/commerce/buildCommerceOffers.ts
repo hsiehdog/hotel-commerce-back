@@ -258,6 +258,8 @@ const toCommerceOffer = ({
     roomType: {
       id: normalizeId(candidate.roomTypeId),
       name: candidate.roomTypeName,
+      description: candidate.roomTypeDescription,
+      features: candidate.features,
     },
     ratePlan: {
       id: normalizeId(candidate.ratePlanId),

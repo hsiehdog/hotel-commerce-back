@@ -1,11 +1,7 @@
 import { createEmptyOfferIntent, type OfferIntent } from "../ai/offerIntent";
-import { buildSlotSpeech, buildOffersFromSnapshot, resolveOfferSlots, type OfferOption } from "../ai/getOffersTool";
-import { getCloudbedsAriRaw } from "../integrations/cloudbeds/cloudbedsAriCache";
-import { normalizeAriRawToSnapshot } from "../integrations/cloudbeds/cloudbedsNormalizer";
-import { getPropertyContext } from "./propertyContext/getPropertyContext";
-import { renderCancellationSummary } from "./propertyContext/renderCancellationSummary";
-import { resolvePropertyIdForRequest } from "./propertyContext/resolvePropertyIdForRequest";
-import { selectCancellationPolicy } from "./propertyContext/selectCancellationPolicy";
+import { buildSlotSpeech, resolveOfferSlots, type OfferOption } from "../ai/getOffersTool";
+import { buildCommerceOffers } from "./commerce/buildCommerceOffers";
+import { calendarDayDiff } from "../utils/dateTime";
 
 export type GenerateOffersInput = {
   args: unknown;
@@ -58,62 +54,53 @@ export const generateOffers = async ({
   if (result.status === "NEEDS_CLARIFICATION") {
     return result;
   }
-  const resolvedProperty = await resolvePropertyIdForRequest(propertyId);
-  const resolvedPropertyId = resolvedProperty.propertyId;
-
-  const ariRaw = await getCloudbedsAriRaw({
-    propertyId: resolvedPropertyId,
-    checkIn: result.slots.check_in ?? "",
-    checkOut: result.slots.check_out ?? undefined,
-    nights: result.slots.nights ?? undefined,
-    adults: result.slots.adults ?? 1,
-    rooms: result.slots.rooms ?? 1,
-    children: result.slots.children ?? 0,
-    pet_friendly: result.slots.pet_friendly ?? undefined,
-    accessible_room: result.slots.accessible_room ?? undefined,
-    needs_two_beds: result.slots.needs_two_beds ?? undefined,
-    parking_needed: result.slots.parking_needed ?? undefined,
-    budget_cap: result.slots.budget_cap ?? undefined,
-    stubScenario: result.slots.stub_scenario ?? undefined,
-    currency: requestCurrency ?? "USD",
-    timezone: result.slots.property_timezone,
+  const commerceResult = await buildCommerceOffers({
+    request: {
+      property_id: propertyId,
+      channel: "voice",
+      check_in: result.slots.check_in ?? undefined,
+      check_out: result.slots.check_out ?? undefined,
+      nights: result.slots.nights ?? undefined,
+      adults: result.slots.adults ?? undefined,
+      rooms: result.slots.rooms ?? undefined,
+      children: result.slots.children ?? undefined,
+      currency: requestCurrency,
+      stub_scenario: result.slots.stub_scenario ?? undefined,
+      debug: true,
+    },
   });
 
-  const snapshot = normalizeAriRawToSnapshot(ariRaw);
-  if (snapshot.roomTypes.length === 0) {
+  if (commerceResult.status === "ERROR") {
     return {
       status: "NEEDS_CLARIFICATION",
-      missingFields: [],
-      clarificationPrompt:
-        "I'm not seeing availability for those dates with that many rooms. Would you like to try fewer rooms or different dates?",
+      missingFields: commerceResult.missingFields,
+      clarificationPrompt: commerceResult.message,
       slots: result.slots,
     };
   }
 
-  const context = await getPropertyContext(resolvedPropertyId);
-  const offers = buildOffersFromSnapshot(snapshot, result.slots).map((offer) => {
-    const roomTypeId = offer.commerce_metadata?.roomTypeId;
-    if (!roomTypeId || !result.slots.check_in) {
-      return offer;
-    }
+  const rooms = result.slots.rooms ?? 1;
+  const nights =
+    result.slots.nights ??
+    (result.slots.check_in && result.slots.check_out
+      ? Math.max(1, calendarDayDiff(result.slots.check_out, result.slots.check_in))
+      : 1);
+  const strategyMode = commerceResult.data.debug?.resolvedRequest.strategyMode ?? "balanced";
+  const saverPrimaryExceptionApplied =
+    commerceResult.data.debug?.selectionSummary.saverPrimaryExceptionApplied ?? false;
+  const offers = commerceResult.data.offers.map((offer, index) =>
+    toToolOffer({
+      offer,
+      currency: commerceResult.data.currency,
+      priceBasisUsed: commerceResult.data.priceBasisUsed,
+      rooms,
+      nights,
+      strategyMode,
+      saverPrimaryExceptionApplied,
+      isPrimary: index === 0,
+    }),
+  );
 
-    const matchedPolicy = selectCancellationPolicy({
-      policies: context?.cancellationPolicies ?? [],
-      checkIn: result.slots.check_in,
-      roomTypeId,
-    });
-
-    return {
-      ...offer,
-      cancellation_policy: renderCancellationSummary({
-        policy: matchedPolicy,
-        refundability: offer.rate_type === "flexible" ? "refundable" : "non_refundable",
-        checkInDate: result.slots.check_in,
-        propertyTimezone: context?.timezone ?? result.slots.property_timezone ?? "UTC",
-        now: now ?? new Date(),
-      }),
-    };
-  });
   if (offers.length === 0) {
     return {
       status: "NEEDS_CLARIFICATION",
@@ -131,6 +118,98 @@ export const generateOffers = async ({
     message: "Get offers tool will be called now with the following slots",
     speech: buildSlotSpeech(result.slots, offers),
   };
+};
+
+const toToolOffer = ({
+  offer,
+  currency,
+  priceBasisUsed,
+  rooms,
+  nights,
+  strategyMode,
+  saverPrimaryExceptionApplied,
+  isPrimary,
+}: {
+  offer: {
+    offerId: string;
+    roomType: { id: string; name: string; description?: string; features?: string[] };
+    ratePlan: { id: string; name: string };
+    policy: {
+      refundability: "refundable" | "non_refundable";
+      paymentTiming: "pay_at_property" | "pay_now";
+      cancellationSummary: string;
+    };
+    pricing:
+      | {
+          basis: "afterTax" | "beforeTaxPlusTaxes";
+          total: number;
+          totalAfterTax: number;
+        }
+      | {
+          basis: "beforeTax";
+          total: number;
+        };
+    urgency?: {
+      type: "scarcity_rooms";
+      value: number;
+      source: { roomTypeId: string; field: "roomsAvailable" };
+    } | null;
+  };
+  currency: string;
+  priceBasisUsed: "afterTax" | "beforeTaxPlusTaxes" | "beforeTax";
+  rooms: number;
+  nights: number;
+  strategyMode: "balanced" | "protect_rate" | "fill_rooms";
+  saverPrimaryExceptionApplied: boolean;
+  isPrimary: boolean;
+}): OfferOption => {
+  const total = "totalAfterTax" in offer.pricing ? offer.pricing.totalAfterTax : offer.pricing.total;
+  const subtotal = offer.pricing.total;
+  const taxesAndFees = Math.max(0, round2(total - subtotal));
+  const perNight = round2(total / Math.max(1, rooms * nights));
+  const description = buildVoiceRoomDescription(offer.roomType.description, offer.roomType.features, offer.roomType.name);
+
+  return {
+    id: offer.offerId,
+    name: `${offer.roomType.name} - ${offer.ratePlan.name}`,
+    description,
+    rate_type: offer.policy.refundability === "refundable" ? "flexible" : "non_refundable",
+    cancellation_policy: offer.policy.cancellationSummary,
+    payment_policy:
+      offer.policy.paymentTiming === "pay_now" ? "Payment is due now." : "You can pay when you arrive.",
+    price: {
+      currency,
+      per_night: perNight,
+      subtotal,
+      taxes_and_fees: taxesAndFees,
+      total,
+    },
+    commerce_metadata: {
+      priceBasisUsed,
+      degradedPriceControls: priceBasisUsed !== "afterTax",
+      isPrimary,
+      strategyMode,
+      saverPrimaryExceptionApplied,
+      roomTypeId: offer.roomType.id,
+      roomTypeName: offer.roomType.name,
+      ratePlanId: offer.ratePlan.id,
+      ratePlanName: offer.ratePlan.name,
+      roomsAvailable: offer.urgency?.value ?? 99,
+    },
+  };
+};
+
+const round2 = (value: number): number => Math.round(value * 100) / 100;
+
+const buildVoiceRoomDescription = (description?: string, features?: string[], fallbackName?: string): string => {
+  const summary = description?.trim();
+  if (!summary) {
+    return `Room type: ${fallbackName ?? "Standard Room"}.`;
+  }
+
+  const featureSummary =
+    features && features.length > 0 ? ` Key features: ${features.slice(0, 5).join(", ")}.` : "";
+  return `${summary}${featureSummary}`;
 };
 
 const isConfirmationOnlyClarification = (output: OfferGenerationOutput): boolean =>

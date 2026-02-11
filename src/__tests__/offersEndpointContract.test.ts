@@ -29,9 +29,7 @@ describe("offers endpoint contract", () => {
   it("passes ApiError(400) to next for invalid request body", async () => {
     const req = {
       body: {
-        slots: {
-          rooms: 0,
-        },
+        rooms: 0,
       },
     } as Parameters<typeof generateOffersForChannel>[0];
     const res = createResponse() as unknown as Parameters<typeof generateOffersForChannel>[1];
@@ -49,12 +47,10 @@ describe("offers endpoint contract", () => {
   it("returns structured commerce response for valid payload", async () => {
     const req = {
       body: {
-        slots: {
-          check_in: "2026-02-10",
-          check_out: "2026-02-12",
-          adults: 2,
-          rooms: 1,
-        },
+        check_in: "2026-02-10",
+        check_out: "2026-02-12",
+        adults: 2,
+        rooms: 1,
       },
     } as Parameters<typeof generateOffersForChannel>[0];
     const res = createResponse() as unknown as Parameters<typeof generateOffersForChannel>[1];
@@ -126,14 +122,12 @@ describe("offers endpoint contract", () => {
     expect(payload.data?.decisionTrace?.some((line) => /Distributed guest occupancy across rooms/i.test(line))).toBe(true);
   });
 
-  it("passes ApiError(422) when required slot data is missing", async () => {
+  it("passes ApiError(422) when required date data is missing", async () => {
     const req = {
       body: {
-        slots: {
-          check_in: "2026-03-12",
-          adults: 2,
-          rooms: 1,
-        },
+        check_in: "2026-03-12",
+        adults: 2,
+        rooms: 1,
       },
     } as Parameters<typeof generateOffersForChannel>[0];
     const res = createResponse() as unknown as Parameters<typeof generateOffersForChannel>[1];

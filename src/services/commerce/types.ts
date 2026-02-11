@@ -38,8 +38,6 @@ export type OfferGenerateRequestV1 = {
   };
   stub_scenario?: string;
   debug?: boolean;
-  intent?: Record<string, unknown>;
-  slots?: Record<string, unknown>;
 };
 
 export type NormalizedOfferRequest = {

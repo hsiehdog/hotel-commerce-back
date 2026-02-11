@@ -7,36 +7,6 @@ import { getPropertyStrategy } from "./getPropertyStrategy";
 import { resolvePropertyIdForRequest } from "../propertyContext/resolvePropertyIdForRequest";
 import type { NormalizedOfferRequest, OfferGenerateRequestV1 } from "./types";
 
-const wrappedSchema = z.object({
-  slots: z.object({
-    check_in: z.string().optional(),
-    check_out: z.string().optional(),
-    nights: z.number().int().positive().optional(),
-    adults: z.number().int().positive().optional(),
-    rooms: z.number().int().positive().optional(),
-    children: z.number().int().nonnegative().optional(),
-    child_ages: z.array(z.number().int().nonnegative()).optional(),
-    roomOccupancies: z
-      .array(
-        z.object({
-          adults: z.number().int().nonnegative(),
-          children: z.number().int().nonnegative(),
-          childAges: z.array(z.number().int().nonnegative()).optional(),
-        }),
-      )
-      .optional(),
-    preferences: z
-      .object({
-        needs_space: z.boolean().optional(),
-        late_arrival: z.boolean().optional(),
-      })
-      .optional(),
-    stub_scenario: z.string().optional(),
-  }),
-  debug: z.boolean().optional(),
-  intent: z.record(z.string(), z.unknown()).optional(),
-});
-
 const topLevelSchema = z.object({
   property_id: z.string().optional(),
   channel: z.enum(["voice", "web", "agent"]).optional(),
@@ -67,24 +37,6 @@ const topLevelSchema = z.object({
 });
 
 export const parseOffersGenerateRequest = (raw: unknown): OfferGenerateRequestV1 => {
-  if (raw && typeof raw === "object" && "slots" in (raw as Record<string, unknown>)) {
-    const wrapped = wrappedSchema.parse(raw);
-    return {
-      check_in: wrapped.slots.check_in,
-      check_out: wrapped.slots.check_out,
-      nights: wrapped.slots.nights,
-      adults: wrapped.slots.adults,
-      rooms: wrapped.slots.rooms,
-      children: wrapped.slots.children,
-      child_ages: wrapped.slots.child_ages,
-      roomOccupancies: wrapped.slots.roomOccupancies,
-      preferences: wrapped.slots.preferences,
-      stub_scenario: wrapped.slots.stub_scenario,
-      debug: wrapped.debug ?? false,
-      intent: wrapped.intent,
-    };
-  }
-
   return topLevelSchema.parse(raw);
 };
 
