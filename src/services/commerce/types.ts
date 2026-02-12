@@ -83,6 +83,8 @@ export type Candidate = {
   price: {
     amount: number;
     basis: "afterTax" | "beforeTaxPlusTaxes" | "beforeTax";
+    subtotal?: number;
+    taxesAndFees?: number;
     nightly?: Array<{ date: string; amount: number }>;
     includedFees?: {
       petFeePerNight: number;

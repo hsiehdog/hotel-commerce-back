@@ -129,10 +129,11 @@ const buildRoomTypeForScenario = (
 
   const flexibleTotal = round2(sumRates(flexibleRates) * rooms);
   const nonRefundTotal = round2(sumRates(nonRefundRates) * rooms);
-  const flexibleTaxes = round2(flexibleTotal * CLOUDBEDS_ARI_ASSUMPTIONS.taxRate);
-  const nonRefundTaxes = round2(nonRefundTotal * CLOUDBEDS_ARI_ASSUMPTIONS.taxRate);
   const petFeePerNight = request.pet_friendly ? CLOUDBEDS_ARI_ASSUMPTIONS.petFriendlySurcharge : 0;
   const parkingFeePerNight = request.parking_needed ? CLOUDBEDS_ARI_ASSUMPTIONS.parkingSurcharge : 0;
+  const includedFeesTotal = round2((petFeePerNight + parkingFeePerNight) * nights);
+  const flexibleTaxes = round2((flexibleTotal + includedFeesTotal) * CLOUDBEDS_ARI_ASSUMPTIONS.taxRate);
+  const nonRefundTaxes = round2((nonRefundTotal + includedFeesTotal) * CLOUDBEDS_ARI_ASSUMPTIONS.taxRate);
 
   const flexRatePlanId = isBusinessLateArrivalDemo ? "rp_king_flex" : CLOUDBEDS_RATE_PLAN_SEEDS.flexible.ratePlanId;
   const flexRatePlanName = isBusinessLateArrivalDemo ? "Flexible" : CLOUDBEDS_RATE_PLAN_SEEDS.flexible.ratePlanName;
@@ -156,7 +157,7 @@ const buildRoomTypeForScenario = (
       detailedRates: toDetailedRates(flexibleRates),
       totalRate: flexibleTotal,
       taxesAndFees: flexibleTaxes,
-      totalAfterTax: round2(flexibleTotal + flexibleTaxes),
+      totalAfterTax: round2(flexibleTotal + includedFeesTotal + flexibleTaxes),
       includedFees: {
         petFeePerNight,
         parkingFeePerNight,
@@ -174,7 +175,7 @@ const buildRoomTypeForScenario = (
       detailedRates: toDetailedRates(nonRefundRates),
       totalRate: nonRefundTotal,
       taxesAndFees: nonRefundTaxes,
-      totalAfterTax: round2(nonRefundTotal + nonRefundTaxes),
+      totalAfterTax: round2(nonRefundTotal + includedFeesTotal + nonRefundTaxes),
       includedFees: {
         petFeePerNight,
         parkingFeePerNight,
@@ -299,12 +300,6 @@ const adjustBaseRate = (
   }
   if (children > 0) {
     rate += children * CLOUDBEDS_ARI_ASSUMPTIONS.childSurcharge;
-  }
-  if (request.pet_friendly) {
-    rate += CLOUDBEDS_ARI_ASSUMPTIONS.petFriendlySurcharge;
-  }
-  if (request.parking_needed) {
-    rate += CLOUDBEDS_ARI_ASSUMPTIONS.parkingSurcharge;
   }
   if (typeof request.budget_cap === "number" && request.budget_cap > 0) {
     rate = Math.min(

@@ -82,9 +82,21 @@ const resolveCandidatePricing = (
   },
 ): Candidate["price"] | null => {
   if (typeof pricing.totalAfterTax === "number" && Number.isFinite(pricing.totalAfterTax)) {
+    const subtotal =
+      typeof pricing.totalBeforeTax === "number" && Number.isFinite(pricing.totalBeforeTax)
+        ? round2(pricing.totalBeforeTax)
+        : null;
+    const taxes =
+      typeof pricing.taxesAndFees === "number" && Number.isFinite(pricing.taxesAndFees)
+        ? round2(pricing.taxesAndFees)
+        : subtotal !== null
+          ? round2(Math.max(0, pricing.totalAfterTax - subtotal))
+          : null;
     return {
       amount: pricing.totalAfterTax,
       basis: "afterTax",
+      ...(subtotal !== null ? { subtotal } : {}),
+      ...(taxes !== null ? { taxesAndFees: taxes } : {}),
       nightly: pricing.nightly.map((nightly) => ({ date: nightly.date, amount: nightly.baseRate })),
     };
   }
@@ -97,6 +109,8 @@ const resolveCandidatePricing = (
     return {
       amount: round2(pricing.totalBeforeTax + pricing.taxesAndFees),
       basis: "beforeTaxPlusTaxes",
+      subtotal: round2(pricing.totalBeforeTax),
+      taxesAndFees: round2(pricing.taxesAndFees),
       nightly: pricing.nightly.map((nightly) => ({ date: nightly.date, amount: nightly.baseRate })),
     };
   }
@@ -104,6 +118,8 @@ const resolveCandidatePricing = (
     return {
       amount: pricing.totalBeforeTax,
       basis: "beforeTax",
+      subtotal: round2(pricing.totalBeforeTax),
+      taxesAndFees: 0,
       nightly: pricing.nightly.map((nightly) => ({ date: nightly.date, amount: nightly.baseRate })),
     };
   }

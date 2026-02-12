@@ -353,11 +353,13 @@ const buildPricingBreakdown = ({
 }) => {
   const safeNights = Math.max(1, nights);
   const preTaxSubtotal =
-    Array.isArray(price.nightly) && price.nightly.length > 0
-      ? round2(price.nightly.reduce((sum, nightly) => sum + nightly.amount, 0))
-      : price.basis === "beforeTax"
-        ? round2(price.amount)
-        : null;
+    typeof price.subtotal === "number" && Number.isFinite(price.subtotal)
+      ? round2(price.subtotal)
+      : Array.isArray(price.nightly) && price.nightly.length > 0
+        ? round2(price.nightly.reduce((sum, nightly) => sum + nightly.amount, 0))
+        : price.basis === "beforeTax"
+          ? round2(price.amount)
+          : null;
   const petFeePerNight = petFriendly ? (price.includedFees?.petFeePerNight ?? 0) : 0;
   const parkingFeePerNight = parkingNeeded ? (price.includedFees?.parkingFeePerNight ?? 0) : 0;
   const petFeeTotal = petFeePerNight !== null ? round2(petFeePerNight * safeNights) : null;
@@ -365,17 +367,32 @@ const buildPricingBreakdown = ({
 
   const totals = [petFeeTotal, parkingFeeTotal].filter((value): value is number => typeof value === "number");
   const totalIncludedFees = totals.length > 0 ? round2(totals.reduce((sum, value) => sum + value, 0)) : null;
-  const baseRateSubtotal = preTaxSubtotal !== null ? round2(Math.max(0, preTaxSubtotal - (totalIncludedFees ?? 0))) : null;
+  const baseRateSubtotal = preTaxSubtotal !== null ? round2(Math.max(0, preTaxSubtotal)) : null;
+  const explicitTaxes =
+    typeof price.taxesAndFees === "number" && Number.isFinite(price.taxesAndFees) ? round2(price.taxesAndFees) : null;
   const taxesAndFees =
-    baseRateSubtotal !== null && (price.basis === "afterTax" || price.basis === "beforeTaxPlusTaxes")
-      ? round2(Math.max(0, price.amount - baseRateSubtotal - (totalIncludedFees ?? 0)))
-      : price.basis === "beforeTax"
-        ? 0
-        : null;
+    explicitTaxes !== null
+      ? explicitTaxes
+      : baseRateSubtotal !== null && (price.basis === "afterTax" || price.basis === "beforeTaxPlusTaxes")
+        ? round2(Math.max(0, price.amount - baseRateSubtotal - (totalIncludedFees ?? 0)))
+        : price.basis === "beforeTax"
+          ? 0
+          : null;
+
+  const totalFromParts =
+    baseRateSubtotal !== null && taxesAndFees !== null ? round2(baseRateSubtotal + taxesAndFees + (totalIncludedFees ?? 0)) : null;
+  const shouldUseResidualTaxes =
+    totalFromParts !== null &&
+    round2(Math.abs(totalFromParts - round2(price.amount))) > 0.01 &&
+    baseRateSubtotal !== null &&
+    (price.basis === "afterTax" || price.basis === "beforeTaxPlusTaxes");
+  const normalizedTaxesAndFees = shouldUseResidualTaxes
+    ? round2(Math.max(0, round2(price.amount) - baseRateSubtotal - (totalIncludedFees ?? 0)))
+    : taxesAndFees;
 
   return {
     baseRateSubtotal,
-    taxesAndFees,
+    taxesAndFees: normalizedTaxesAndFees,
     includedFees: {
       nights: safeNights,
       petFeePerNight,

@@ -356,4 +356,44 @@ describe("commerce decision engine coverage", () => {
     expect(secondEnhancementIds).toContain("addon_parking");
   });
 
+  it("keeps pricing breakdown balanced for multi-room requests", async () => {
+    const req = {
+      body: {
+        property_id: "demo_property",
+        channel: "web",
+        check_in: "2026-02-26",
+        check_out: "2026-02-28",
+        rooms: 2,
+        adults: 2,
+        children: 0,
+        child_ages: [],
+        roomOccupancies: [
+          { adults: 1, children: 0 },
+          { adults: 1, children: 0 },
+        ],
+        debug: true,
+      },
+    } as Parameters<typeof generateOffersForChannel>[0];
+    const res = createResponse();
+    const next = vi.fn();
+
+    await generateOffersForChannel(req, res, next as Parameters<typeof generateOffersForChannel>[2]);
+    expect(next).not.toHaveBeenCalled();
+
+    const payload = (res as unknown as { json: ReturnType<typeof vi.fn> }).json.mock.calls[0]?.[0] as OfferResponsePayload;
+    const pricing = payload.data.offers[0]?.pricing;
+    const breakdown = pricing?.breakdown;
+    expect(breakdown?.baseRateSubtotal).toBe(446);
+    expect(breakdown?.taxesAndFees).toBe(53.52);
+    expect(breakdown?.includedFees?.totalIncludedFees).toBe(0);
+    const recomposedTotal = round2(
+      (breakdown?.baseRateSubtotal ?? 0) +
+        (breakdown?.taxesAndFees ?? 0) +
+        (breakdown?.includedFees?.totalIncludedFees ?? 0),
+    );
+    expect(recomposedTotal).toBe(pricing?.totalAfterTax);
+  });
+
 });
+
+const round2 = (value: number): number => Math.round(value * 100) / 100;
