@@ -120,7 +120,7 @@ SUITE_ROOM_TYPE_IDS=RT_PREMIER_SUITE,RT_FAMILY_SUITE,RT_BUNK_SUITE pnpm stub:pro
 
 - `POST /offers/generate` (no auth required)
   - Request shape:
-    - Canonical top-level: `{ property_id, channel, check_in, check_out, adults, rooms, children?, child_ages?, roomOccupancies?, currency?, preferences?, pet_friendly?, accessible_room?, needs_two_beds?, budget_cap?, parking_needed?, stub_scenario?, debug? }`
+    - Canonical top-level: `{ property_id, channel, check_in, check_out, adults, rooms, children?, child_ages?, roomOccupancies?, currency?, pet_friendly?, accessible_room?, needs_two_beds?, budget_cap?, parking_needed?, stub_scenario?, debug? }`
   - Request attributes and allowed values:
     - `property_id`: any string (example: `"inn_at_mount_shasta"`)
     - `channel`: `"voice" | "web" | "agent"` (default: `"voice"`)
@@ -136,8 +136,6 @@ SUITE_ROOM_TYPE_IDS=RT_PREMIER_SUITE,RT_FAMILY_SUITE,RT_BUNK_SUITE pnpm stub:pro
     - `adults`: integer `>= 0`
     - `children`: integer `>= 0`
     - `child_ages`: array of integers `>= 0` (length must equal total children)
-    - `preferences.needs_space`: boolean
-    - `preferences.late_arrival`: boolean
     - `pet_friendly`: boolean
     - `accessible_room`: boolean
     - `needs_two_beds`: boolean
@@ -421,8 +419,7 @@ curl -sS "$BASE_URL/offers/generate" \
     "rooms": 1,
     "adults": 2,
     "children": 2,
-    "child_ages": [7,10],
-    "preferences": { "needs_space": true }
+    "child_ages": [7,10]
   }' | jq '.data | {offers: .offers, presentationHints: .presentationHints, decisionTrace: .decisionTrace}'
 ```
 Expected:
@@ -445,7 +442,7 @@ curl -sS "$BASE_URL/offers/generate" \
 Expected:
 - `offers[0].type = "SAVER"`
 
-3. Business late arrival: convenience enhancement as request-only
+3. Solo short stay: SAFE primary
 ```bash
 curl -sS "$BASE_URL/offers/generate" \
   -H "Content-Type: application/json" \
@@ -455,14 +452,11 @@ curl -sS "$BASE_URL/offers/generate" \
     "check_in": "2026-03-17",
     "check_out": "2026-03-18",
     "rooms": 1,
-    "adults": 1,
-    "preferences": { "late_arrival": true }
+    "adults": 1
   }' | jq '.data | {offers: .offers, presentationHints: .presentationHints, decisionTrace: .decisionTrace}'
 ```
 Expected:
 - `offers[0].type = "SAFE"`
-- `offers[0].enhancements[0].availability = "request"`
-- enhancement disclosure mentions availability at check-in
 
 4. Constraint weekend: one offer + fallback action
 ```bash

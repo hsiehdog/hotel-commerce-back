@@ -76,7 +76,6 @@ describe("offers endpoint contract", () => {
         adults: 2,
         children: 2,
         rooms: 1,
-        preferences: { needs_space: true },
       },
     } as Parameters<typeof generateOffersForChannel>[0];
     const res = createResponse() as unknown as Parameters<typeof generateOffersForChannel>[1];

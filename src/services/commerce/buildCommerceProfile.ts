@@ -9,10 +9,6 @@ type PreProfileInput = {
   nights: number;
   leadTimeDays: number;
   channel: "voice" | "web" | "agent";
-  preferences?: {
-    needs_space?: boolean;
-    late_arrival?: boolean;
-  };
 };
 
 type InventorySignalInput = {
@@ -72,9 +68,6 @@ const resolveDecisionPosture = (
   },
 ): DecisionPosture => {
   if (input.leadTimeDays <= 2) {
-    return "urgent";
-  }
-  if (input.preferences?.late_arrival) {
     return "urgent";
   }
   if (input.leadTimeDays <= 7) {

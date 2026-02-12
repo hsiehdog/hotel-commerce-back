@@ -25,12 +25,6 @@ const topLevelSchema = z.object({
   adults: z.number().int().nonnegative().optional(),
   children: z.number().int().nonnegative().optional(),
   child_ages: z.array(z.number().int().nonnegative()).optional(),
-  preferences: z
-    .object({
-      needs_space: z.boolean().optional(),
-      late_arrival: z.boolean().optional(),
-    })
-    .optional(),
   pet_friendly: z.boolean().optional(),
   accessible_room: z.boolean().optional(),
   needs_two_beds: z.boolean().optional(),
@@ -85,7 +79,6 @@ export const normalizeOfferRequest = async (raw: OfferGenerateRequestV1): Promis
     nights,
     leadTimeDays,
     channel: raw.channel ?? "voice",
-    preferences: raw.preferences,
   });
 
   const currency = raw.currency ?? property?.defaultCurrency ?? "USD";
@@ -111,7 +104,6 @@ export const normalizeOfferRequest = async (raw: OfferGenerateRequestV1): Promis
       hasWebBookingUrl: false,
     },
     profile,
-    preferences: raw.preferences,
     petFriendly: raw.pet_friendly,
     accessibleRoom: raw.accessible_room,
     needsTwoBeds: raw.needs_two_beds,

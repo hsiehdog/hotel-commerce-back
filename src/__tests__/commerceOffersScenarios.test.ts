@@ -19,7 +19,6 @@ describe("commerce offers scenarios", () => {
         adults: 2,
         children: 2,
         child_ages: [7, 10],
-        preferences: { needs_space: true },
       },
     } as Parameters<typeof generateOffersForChannel>[0];
     const res = createResponse();
@@ -64,7 +63,7 @@ describe("commerce offers scenarios", () => {
     expect(payload.data.decisionTrace.some((line) => /refundable primary/i.test(line))).toBe(false);
   });
 
-  it("late arrival adds request-only business enhancement", async () => {
+  it("family trip adds family-fit enhancement", async () => {
     const req = {
       body: {
         property_id: "cb_123",
@@ -72,9 +71,9 @@ describe("commerce offers scenarios", () => {
         check_in: "2026-03-17",
         check_out: "2026-03-18",
         rooms: 1,
-        adults: 1,
-        children: 0,
-        preferences: { late_arrival: true },
+        adults: 2,
+        children: 1,
+        child_ages: [6],
       },
     } as Parameters<typeof generateOffersForChannel>[0];
     const res = createResponse();
@@ -85,8 +84,7 @@ describe("commerce offers scenarios", () => {
     const payload = (res as unknown as { json: ReturnType<typeof vi.fn> }).json.mock.calls[0]?.[0] as {
       data: { offers: Array<{ enhancements?: Array<{ availability: string; disclosure?: string }> }> };
     };
-    expect(payload.data.offers[0]?.enhancements?.[0]?.availability).toBe("request");
-    expect(payload.data.offers[0]?.enhancements?.[0]?.disclosure).toMatch(/subject to availability/i);
+    expect(payload.data.offers[0]?.enhancements?.[0]?.availability).toBe("info");
   });
 
   it("constraint weekend can still return two SAFE offers via same-archetype fallback", async () => {

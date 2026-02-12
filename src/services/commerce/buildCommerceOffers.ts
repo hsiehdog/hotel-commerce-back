@@ -90,7 +90,6 @@ export const buildCommerceOffers = async ({
         profile: finalProfile,
         checkIn: normalized.checkIn,
         now: new Date(normalized.nowUtcIso),
-        preferences: normalized.preferences,
         petFriendly: normalized.petFriendly,
         parkingNeeded: normalized.parkingNeeded,
         propertyContext,
@@ -107,10 +106,6 @@ export const buildCommerceOffers = async ({
       ...(normalized.occupancyDistributed ? ["NORMALIZE_OCCUPANCY_DISTRIBUTED"] : []),
       ...filterResult.reasonCodes,
       ...selection.reasonCodes,
-      ...buildProfileReasonCodes(normalized.preferences),
-      ...(normalized.preferences?.late_arrival && offers[0]?.type === "SAFE"
-        ? ["PROFILE_LATE_ARRIVAL_PRIMARY_SAFE"]
-        : []),
       ...(offers.some((offer) => (offer.enhancements?.length ?? 0) > 0) ? ["ENHANCEMENT_ATTACHED"] : []),
       ...(fallbackCode ? [fallbackCode] : []),
     ];
@@ -208,7 +203,6 @@ const toCommerceOffer = ({
   profile,
   checkIn,
   now,
-  preferences,
   petFriendly,
   parkingNeeded,
   propertyContext,
@@ -218,19 +212,15 @@ const toCommerceOffer = ({
   profile: { tripType: string; decisionPosture: string };
   checkIn: string;
   now: Date;
-  preferences?: { needs_space?: boolean; late_arrival?: boolean };
   petFriendly?: boolean;
   parkingNeeded?: boolean;
   propertyContext: PropertyContext | null;
 }): CommerceOffer => {
   const isSaver = candidate.archetype === "SAVER";
-  const isBusinessLateArrivalDemo = Boolean(preferences?.late_arrival);
 
   const enhancements = buildEnhancements({
     tripType: profile.tripType,
     currency: candidate.currency,
-    lateArrival: preferences?.late_arrival ?? false,
-    needsSpace: preferences?.needs_space ?? false,
     petFriendly: petFriendly ?? false,
     parkingNeeded: parkingNeeded ?? false,
     includedFees: candidate.price.includedFees,
@@ -250,11 +240,7 @@ const toCommerceOffer = ({
   });
 
   return {
-    offerId: isBusinessLateArrivalDemo
-      ? isSaver
-        ? "off_saver_business"
-        : "off_safe_business"
-      : normalizeId(candidate.ratePlanId),
+    offerId: normalizeId(candidate.ratePlanId),
     type: isSaver ? "SAVER" : "SAFE",
     recommended,
     roomType: {
@@ -270,17 +256,13 @@ const toCommerceOffer = ({
     policy: {
       refundability: candidate.refundability === "refundable" ? "refundable" : "non_refundable",
       paymentTiming: candidate.paymentTiming === "pay_now" ? "pay_now" : "pay_at_property",
-      cancellationSummary: isBusinessLateArrivalDemo
-        ? isSaver
-          ? "Non-refundable once booked."
-          : "Free cancellation up to 24 hours before arrival."
-        : renderCancellationSummary({
-            policy: cancellationPolicy,
-            refundability: candidate.refundability === "refundable" ? "refundable" : "non_refundable",
-            checkInDate: checkIn,
-            propertyTimezone: propertyContext?.timezone ?? "UTC",
-            now,
-          }),
+      cancellationSummary: renderCancellationSummary({
+        policy: cancellationPolicy,
+        refundability: candidate.refundability === "refundable" ? "refundable" : "non_refundable",
+        checkInDate: checkIn,
+        propertyTimezone: propertyContext?.timezone ?? "UTC",
+        now,
+      }),
     },
     pricing:
       candidate.price.basis === "beforeTax"
@@ -303,8 +285,6 @@ const toCommerceOffer = ({
 const buildEnhancements = ({
   tripType,
   currency,
-  lateArrival,
-  needsSpace,
   petFriendly,
   parkingNeeded,
   includedFees,
@@ -312,35 +292,19 @@ const buildEnhancements = ({
 }: {
   tripType: string;
   currency: string;
-  lateArrival: boolean;
-  needsSpace: boolean;
   petFriendly: boolean;
   parkingNeeded: boolean;
   includedFees?: ScoredCandidate["price"]["includedFees"];
   stayPolicy?: PropertyContext["stayPolicy"];
 }) => {
   const enhancements: CommerceOffer["enhancements"] = [];
-  if (tripType === "family" || needsSpace) {
+  if (tripType === "family") {
     enhancements.push({
       id: "addon_breakfast",
       name: "Breakfast",
       price: { type: "perPersonPerNight", amount: 18, currency },
       availability: "info",
       whyShown: "family_fit",
-    });
-  }
-
-  if (lateArrival) {
-    const lateCheckoutAmount = centsToDollars(stayPolicy?.lateCheckoutFeeCents) ?? 35;
-    const lateCheckoutCurrency = stayPolicy?.lateCheckoutCurrency ?? currency;
-    const lateCheckoutTime = formatTime(stayPolicy?.lateCheckoutTime) ?? "2:00 PM";
-    enhancements.push({
-      id: "addon_late_checkout",
-      name: `Late checkout (${lateCheckoutTime})`,
-      price: { type: "perStay", amount: lateCheckoutAmount, currency: lateCheckoutCurrency },
-      availability: "request",
-      whyShown: "business_efficiency",
-      disclosure: "Subject to availability at check-in.",
     });
   }
 
@@ -458,19 +422,6 @@ const buildDisclosures = (propertyContext: PropertyContext | null): string[] => 
   }
 
   return disclosures;
-};
-
-const buildProfileReasonCodes = (
-  preferences?: { needs_space?: boolean; late_arrival?: boolean },
-): string[] => {
-  const codes: string[] = [];
-  if (preferences?.late_arrival) {
-    codes.push("PROFILE_LATE_ARRIVAL");
-  }
-  if (preferences?.needs_space) {
-    codes.push("PROFILE_FAMILY_SPACE");
-  }
-  return codes;
 };
 
 const buildEmphasis = ({

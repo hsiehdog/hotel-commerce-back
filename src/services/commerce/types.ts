@@ -31,10 +31,6 @@ export type OfferGenerateRequestV1 = {
   adults?: number;
   children?: number;
   child_ages?: number[];
-  preferences?: {
-    needs_space?: boolean;
-    late_arrival?: boolean;
-  };
   pet_friendly?: boolean;
   accessible_room?: boolean;
   needs_two_beds?: boolean;
@@ -61,10 +57,6 @@ export type NormalizedOfferRequest = {
   strategyMode: StrategyMode;
   capabilities: ChannelCapabilities;
   profile: CommerceProfile;
-  preferences?: {
-    needs_space?: boolean;
-    late_arrival?: boolean;
-  };
   petFriendly?: boolean;
   accessibleRoom?: boolean;
   needsTwoBeds?: boolean;

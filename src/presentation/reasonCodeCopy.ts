@@ -7,7 +7,6 @@ const REASON_CODE_COPY: Record<string, string> = {
   FILTER_PRICE_MISSING: "Removed candidates missing valid pricing basis.",
   SELECT_PRIMARY_SAFE: "Selected refundable primary offer for conversion stability.",
   SELECT_PRIMARY_SAVER_ONLY_AVAILABLE: "Selected saver primary because no comparable SAFE primary was available.",
-  PROFILE_LATE_ARRIVAL_PRIMARY_SAFE: "Selected refundable as primary due to short lead time / higher change risk.",
   SELECT_PRIMARY_SAVER_EXCEPTION_LOW_INVENTORY:
     "Saver-primary exception applied due to low inventory and large price delta.",
   SECONDARY_POOL_EMPTY_OPPOSITE_ARCHETYPE: "Could not find an eligible second offer in the opposite archetype.",
@@ -21,9 +20,7 @@ const REASON_CODE_COPY: Record<string, string> = {
   FALLBACK_TEXT_LINK: "Returning booking link fallback to confirm exact pricing.",
   FALLBACK_WAITLIST: "Returning waitlist callback fallback.",
   FALLBACK_CONTACT_PROPERTY: "Returning contact-property fallback for web flow.",
-  PROFILE_LATE_ARRIVAL: "Late arrival noted; did not refetch ARI (merchandising-only signal).",
-  PROFILE_FAMILY_SPACE: "Family/space profile influenced presentation and enhancements.",
-  ENHANCEMENT_ATTACHED: "Attached late checkout as request-only enhancement (inventory constrained).",
+  ENHANCEMENT_ATTACHED: "Attached one or more applicable enhancements.",
 };
 
 export const reasonCodesToCopy = (reasonCodes: string[]): string[] =>

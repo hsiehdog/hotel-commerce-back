@@ -236,7 +236,7 @@ describe("commerce decision engine coverage", () => {
     expect(roomOccupancies.every((room) => room.adults + room.children > 0)).toBe(true);
   });
 
-  it("bonus: enhancement attachment includes request-only disclosure", async () => {
+  it("bonus: enhancement attachment includes contextual enhancement", async () => {
     const req = {
       body: {
         property_id: "demo_property",
@@ -246,7 +246,7 @@ describe("commerce decision engine coverage", () => {
         check_out: "2026-02-15",
         rooms: 2,
         adults: 4,
-        preferences: { late_arrival: true },
+        parking_needed: true,
         currency: "USD",
         debug: true,
       },
@@ -258,10 +258,10 @@ describe("commerce decision engine coverage", () => {
     expect(next).not.toHaveBeenCalled();
 
     const payload = (res as unknown as { json: ReturnType<typeof vi.fn> }).json.mock.calls[0]?.[0] as OfferResponsePayload;
-    const enhancement = payload.data.offers[0]?.enhancements?.[0];
+    const enhancement = payload.data.offers[0]?.enhancements?.find((item) => item.id === "addon_parking");
     expect(payload.data.debug?.reasonCodes).toContain("ENHANCEMENT_ATTACHED");
-    expect(enhancement?.availability).toBe("request");
-    expect(enhancement?.disclosure).toMatch(/subject to availability/i);
+    expect(enhancement?.availability).toBe("info");
+    expect(enhancement?.disclosure).toMatch(/parking request noted/i);
   });
 
   it("filters to accessible room types when accessible_room is requested", async () => {
