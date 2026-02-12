@@ -56,20 +56,12 @@ export type CommerceOffer = {
           };
         };
       };
-  urgency?: {
-    type: "scarcity_rooms";
-    value: number;
-    source: {
-      roomTypeId: string;
-      field: "roomsAvailable";
-    };
-  } | null;
   enhancements?: CommerceEnhancement[];
   disclosures?: string[];
 };
 
 export type CommerceFallbackAction = {
-  type: "suggest_alternate_dates" | "text_booking_link" | "transfer_to_front_desk" | "collect_waitlist" | "contact_property";
+  type: "suggest_alternate_dates" | "text_booking_link" | "collect_waitlist" | "contact_property";
   reason: string;
   suggestions?: Array<{ check_in: string; check_out: string }>;
   requiresCapabilities?: string[];
@@ -77,13 +69,6 @@ export type CommerceFallbackAction = {
 
 export type CommercePresentationHints = {
   emphasis: string[];
-  urgency:
-    | {
-        type: "scarcity_rooms";
-        value: number;
-        source: { roomTypeId: string; field: "roomsAvailable" };
-      }
-    | null;
 };
 
 export type CommerceOfferResponse = {
@@ -105,7 +90,7 @@ export type CommerceOfferResponse = {
       rooms: number;
       roomOccupancies: Array<{ adults: number; children: number }>;
       currency: string;
-      strategyMode: "balanced" | "protect_rate" | "fill_rooms";
+      strategyMode: "balanced";
       petFriendly?: boolean;
       accessibleRoom?: boolean;
       needsTwoBeds?: boolean;

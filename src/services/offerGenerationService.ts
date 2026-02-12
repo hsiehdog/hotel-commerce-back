@@ -154,17 +154,12 @@ const toToolOffer = ({
           basis: "beforeTax";
           total: number;
         };
-    urgency?: {
-      type: "scarcity_rooms";
-      value: number;
-      source: { roomTypeId: string; field: "roomsAvailable" };
-    } | null;
   };
   currency: string;
   priceBasisUsed: "afterTax" | "beforeTaxPlusTaxes" | "beforeTax";
   rooms: number;
   nights: number;
-  strategyMode: "balanced" | "protect_rate" | "fill_rooms";
+  strategyMode: "balanced";
   saverPrimaryExceptionApplied: boolean;
   isPrimary: boolean;
 }): OfferOption => {
@@ -199,7 +194,7 @@ const toToolOffer = ({
       roomTypeName: offer.roomType.name,
       ratePlanId: offer.ratePlan.id,
       ratePlanName: offer.ratePlan.name,
-      roomsAvailable: offer.urgency?.value ?? 99,
+      roomsAvailable: 99,
     },
   };
 };

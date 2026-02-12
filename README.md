@@ -121,6 +121,31 @@ SUITE_ROOM_TYPE_IDS=RT_PREMIER_SUITE,RT_FAMILY_SUITE,RT_BUNK_SUITE pnpm stub:pro
 - `POST /offers/generate` (no auth required)
   - Request shape:
     - Canonical top-level: `{ property_id, channel, check_in, check_out, adults, rooms, children?, child_ages?, roomOccupancies?, currency?, preferences?, pet_friendly?, accessible_room?, needs_two_beds?, budget_cap?, parking_needed?, stub_scenario?, debug? }`
+  - Request attributes and allowed values:
+    - `property_id`: any string (example: `"inn_at_mount_shasta"`)
+    - `channel`: `"voice" | "web" | "agent"` (default: `"voice"`)
+    - `check_in`: ISO date string `"YYYY-MM-DD"`
+    - `check_out`: ISO date string `"YYYY-MM-DD"`
+    - `nights`: positive integer (`>= 1`, optional if dates are provided)
+    - `currency`: any string currency code (typically `"USD"`; exact-match filtering in v1)
+    - `rooms`: positive integer (`>= 1`)
+    - `roomOccupancies`: array of `{ adults: number; children: number }` with non-negative integers
+      - each room must have at least 1 guest
+      - when provided, `rooms` must equal `roomOccupancies.length`
+      - when provided, totals must match top-level `adults`/`children` if those are set
+    - `adults`: integer `>= 0`
+    - `children`: integer `>= 0`
+    - `child_ages`: array of integers `>= 0` (length must equal total children)
+    - `preferences.needs_space`: boolean
+    - `preferences.late_arrival`: boolean
+    - `pet_friendly`: boolean
+    - `accessible_room`: boolean
+    - `needs_two_beds`: boolean
+    - `budget_cap`: positive number (`> 0`)
+    - `parking_needed`: boolean
+    - `stub_scenario`: `"default" | "saver_primary_accessible" | "currency_mismatch" | "before_tax_only" | "invalid_pricing" | "constraint_min_los"`
+      - unknown scenario values fall back to `"default"`
+    - `debug`: boolean (default: `false`)
   - Property resolution:
     - if `property_id` exists in DB, that property is used
     - if `property_id` is omitted or unknown, falls back to v1 defaults (`property_id="demo_property"`)
@@ -175,7 +200,7 @@ Core policy is deterministic and versioned.
   4. fail closed (invalid candidate)
 - No synthetic tax estimation
 - Exact currency matching only (no FX)
-- Strategy-based price delta limits (`protect_rate`, `balanced`, `fill_rooms`)
+- Price delta limits (`balanced`)
 - Saver-primary exception only under locked compression + delta thresholds
 - Fallback clarification when pricing is not trustworthy
 
@@ -185,7 +210,7 @@ The commerce engine runs this deterministic pipeline:
 
 1. Normalize request
 - Validate top-level canonical payload and normalize into the internal request model.
-- Canonical request includes dates, occupancy, currency, strategy mode, capabilities, and profile pre-ARI.
+- Canonical request includes dates, occupancy, currency, fixed `strategyMode="balanced"`, static capabilities, and profile pre-ARI.
 
 2. Build broad candidates
 - Expand ARI into `(roomType x ratePlan)` candidate rows.
@@ -272,10 +297,8 @@ The commerce engine runs this deterministic pipeline:
   - `low` when selected primary `roomsAvailable <= 2`
   - `normal` when selected primary `roomsAvailable > 2`
   - `unknown` when selected primary availability is missing
-- Price spread guardrails by strategy mode:
-  - `protect_rate`: `<=20%` and `<= $250`
+- Price spread guardrail:
   - `balanced`: `<=25%` and `<= $300`
-  - `fill_rooms`: `<=35%` and `<= $400`
 - Enhancements are attached post-selection and never alter base ranking.
 - Cancellation summary rendering rules:
   - `non_refundable` offers always render non-refundable cancellation copy.
@@ -290,12 +313,10 @@ The commerce engine runs this deterministic pipeline:
 - For `offersCount == 1`:
   - `web`: `suggest_alternate_dates`
   - `voice`: `text_booking_link` if `canTextLink && hasWebBookingUrl`
-  - else `voice`: `transfer_to_front_desk` if `canTransferToFrontDesk && isOpenNow`
   - else: `suggest_alternate_dates`
 - For `offersCount == 0`:
   - `web`: `contact_property` if `hasWebBookingUrl`, else `suggest_alternate_dates`
-  - `voice`: `transfer_to_front_desk` if `canTransferToFrontDesk && isOpenNow`
-  - else `text_booking_link` if `canTextLink && hasWebBookingUrl`
+  - `voice`: `text_booking_link` if `canTextLink && hasWebBookingUrl`
   - else `collect_waitlist` if `canCollectWaitlist`
   - else: `suggest_alternate_dates`
 
@@ -316,9 +337,9 @@ The commerce engine runs this deterministic pipeline:
     - always non-refundable wording for non-refundable plans
   - `offers[].disclosures` may include policy-required notes (after-hours, smoking, check-in requirements)
 - `fallbackAction` (when fewer than 2 offers remain)
-- `presentationHints` (includes structured urgency when sourced)
+- `presentationHints` (emphasis only)
 - `decisionTrace` (human-readable deterministic reasons)
-- `configVersion` (resolved `property_commerce_config.version` used at runtime, not engine policy version)
+- `configVersion` (static `1` in v1 simplified mode)
 
 When `debug: true` is passed, response also includes:
 - `debug.resolvedRequest`
@@ -408,7 +429,7 @@ Expected:
 - `offers[0].type = "SAFE"`
 - `offers[0].enhancements[0].availability = "info"`
 
-2. Compression weekend: saver-primary exception + factual urgency
+2. Compression weekend: saver-primary exception
 ```bash
 curl -sS "$BASE_URL/offers/generate" \
   -H "Content-Type: application/json" \
@@ -423,7 +444,6 @@ curl -sS "$BASE_URL/offers/generate" \
 ```
 Expected:
 - `offers[0].type = "SAVER"`
-- `offers[0].urgency.type = "scarcity_rooms"`
 
 3. Business late arrival: convenience enhancement as request-only
 ```bash
@@ -459,7 +479,7 @@ curl -sS "$BASE_URL/offers/generate" \
 ```
 Expected:
 - `offers | length` is `1`
-- `fallbackAction` is present (typically `text_booking_link` when capabilities allow)
+- `fallbackAction` is present
 
 5. Currency mismatch: strict invalidation + graceful fallback
 ```bash
@@ -485,15 +505,13 @@ Prisma models include:
 - Better Auth tables (`users`, `auth_sessions`, `auth_accounts`, `auth_verifications`)
 - Commerce support tables:
   - `properties`
-  - `property_front_desk_hours`
-  - `property_commerce_config`
-  - `room_tier_overrides`
+  - `property_content`
+  - `property_amenities`
+  - `property_stay_policies`
+  - `property_cancellation_policies`
 
 Recent migration:
-- `prisma/migrations/20260209123000_add_property_hours/migration.sql`
-- `prisma/migrations/20260210182000_add_commerce_config/migration.sql`
-- `prisma/migrations/20260210184000_add_capability_fields/migration.sql`
-- `prisma/migrations/20260210130500_rename_property_hours_to_front_desk_hours/migration.sql`
+- Schema now uses simplified property context tables only (no commerce-config/front-desk-hours/tier-override tables).
 
 ## Project Structure
 

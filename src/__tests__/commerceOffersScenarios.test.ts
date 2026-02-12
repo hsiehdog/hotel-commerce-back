@@ -40,7 +40,7 @@ describe("commerce offers scenarios", () => {
     expect(payload.data.decisionTrace.some((line) => /secondary/i.test(line))).toBe(true);
   });
 
-  it("compression weekend can flip primary to SAVER with factual urgency", async () => {
+  it("compression weekend can flip primary to SAVER", async () => {
     const req = {
       body: {
         property_id: "cb_123",
@@ -58,10 +58,9 @@ describe("commerce offers scenarios", () => {
     await generateOffersForChannel(req, res, next as Parameters<typeof generateOffersForChannel>[2]);
     expect(next).not.toHaveBeenCalled();
     const payload = (res as unknown as { json: ReturnType<typeof vi.fn> }).json.mock.calls[0]?.[0] as {
-      data: { offers: Array<{ type: string; urgency?: { type: string } | null }>; decisionTrace: string[] };
+      data: { offers: Array<{ type: string }>; decisionTrace: string[] };
     };
     expect(payload.data.offers[0]?.type).toBe("SAVER");
-    expect(payload.data.offers[0]?.urgency?.type).toBe("scarcity_rooms");
     expect(payload.data.decisionTrace.some((line) => /refundable primary/i.test(line))).toBe(false);
   });
 

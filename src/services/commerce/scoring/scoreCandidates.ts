@@ -10,7 +10,7 @@ export const scoreCandidates = ({
   candidates: Candidate[];
   tripType: "family" | "business" | "couple" | "solo" | "group_lite";
   posture: "certainty" | "price" | "experience" | "urgent";
-  strategyMode: "balanced" | "protect_rate" | "fill_rooms";
+  strategyMode: "balanced";
 }): ScoredCandidate[] => {
   if (candidates.length === 0) {
     return [];

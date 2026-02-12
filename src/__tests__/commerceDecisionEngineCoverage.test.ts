@@ -116,7 +116,7 @@ describe("commerce decision engine coverage", () => {
     expect(payload.data.debug?.selectionSummary?.secondaryFailureReason).toBe(
       "SECONDARY_REJECTED_PRICE_SPREAD_GUARDRAIL",
     );
-    expect(payload.data.fallbackAction?.type).toBe("text_booking_link");
+    expect(payload.data.fallbackAction?.type).toBe("suggest_alternate_dates");
     expect(payload.data.debug?.reasonCodes).toContain("SELECT_PRIMARY_SAVER_EXCEPTION_LOW_INVENTORY");
   });
 
@@ -246,6 +246,7 @@ describe("commerce decision engine coverage", () => {
         check_out: "2026-02-15",
         rooms: 2,
         adults: 4,
+        preferences: { late_arrival: true },
         currency: "USD",
         debug: true,
       },

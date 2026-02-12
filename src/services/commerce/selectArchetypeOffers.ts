@@ -126,19 +126,16 @@ export const selectArchetypeOffers = ({
 export type FallbackActionCode =
   | "FALLBACK_ALTERNATE_DATES"
   | "FALLBACK_TEXT_LINK"
-  | "FALLBACK_TRANSFER_FRONT_DESK"
   | "FALLBACK_WAITLIST"
   | "FALLBACK_CONTACT_PROPERTY";
 
 export const selectFallbackAction = ({
   channel,
   capabilities,
-  isOpenNow,
   offersCount,
 }: {
   channel: ChannelType;
   capabilities: ChannelCapabilities;
-  isOpenNow: boolean;
   offersCount: number;
 }): FallbackActionCode | null => {
   if (offersCount >= 2) {
@@ -152,9 +149,6 @@ export const selectFallbackAction = ({
     if (channel === "voice" && capabilities.canTextLink && capabilities.hasWebBookingUrl) {
       return "FALLBACK_TEXT_LINK";
     }
-    if (channel === "voice" && capabilities.canTransferToFrontDesk && isOpenNow) {
-      return "FALLBACK_TRANSFER_FRONT_DESK";
-    }
     return "FALLBACK_ALTERNATE_DATES";
   }
 
@@ -165,9 +159,6 @@ export const selectFallbackAction = ({
     return "FALLBACK_ALTERNATE_DATES";
   }
 
-  if (channel === "voice" && capabilities.canTransferToFrontDesk && isOpenNow) {
-    return "FALLBACK_TRANSFER_FRONT_DESK";
-  }
   if (capabilities.canTextLink && capabilities.hasWebBookingUrl) {
     return "FALLBACK_TEXT_LINK";
   }

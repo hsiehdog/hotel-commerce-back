@@ -1,4 +1,3 @@
-import { prisma } from "../../lib/prisma";
 import { getCloudbedsAriRaw } from "../../integrations/cloudbeds/cloudbedsAriCache";
 import { normalizeAriRawToSnapshot } from "../../integrations/cloudbeds/cloudbedsNormalizer";
 import { getPropertyContext } from "../propertyContext/getPropertyContext";
@@ -53,8 +52,7 @@ export const buildCommerceOffers = async ({
     });
 
     const snapshot = normalizeAriRawToSnapshot(ariRaw);
-    const roomTierOverrides = await getRoomTierOverrides(normalized.propertyId);
-    const rawCandidates = generateCandidates(snapshot, roomTierOverrides);
+    const rawCandidates = generateCandidates(snapshot);
     const filterResult = filterCandidates({
       candidates: rawCandidates,
       requestCurrency: normalized.currency,
@@ -102,7 +100,6 @@ export const buildCommerceOffers = async ({
     const fallbackCode = selectFallbackAction({
       channel: normalized.channel,
       capabilities: normalized.capabilities,
-      isOpenNow: normalized.isOpenNow,
       offersCount: offers.length,
     });
 
@@ -189,10 +186,6 @@ export const buildCommerceOffers = async ({
             saverPrimary: offers[0]?.type === "SAVER",
             secondarySavingsQualified: selection.secondarySavingsQualified,
           }),
-          urgency:
-            normalized.urgencyEnabled && normalized.allowedUrgencyTypes.includes("scarcity_rooms")
-              ? offers[0]?.urgency ?? null
-              : null,
         },
         reasonCodes,
         configVersion: normalized.configVersion,
@@ -232,21 +225,9 @@ const toCommerceOffer = ({
 }): CommerceOffer => {
   const isSaver = candidate.archetype === "SAVER";
   const isBusinessLateArrivalDemo = Boolean(preferences?.late_arrival);
-  const urgency =
-    recommended && isSaver && (candidate.roomsAvailable ?? 99) <= 2
-      ? {
-          type: "scarcity_rooms" as const,
-          value: candidate.roomsAvailable ?? 1,
-          source: {
-            roomTypeId: normalizeId(candidate.roomTypeId),
-            field: "roomsAvailable" as const,
-          },
-        }
-      : null;
 
   const enhancements = buildEnhancements({
     tripType: profile.tripType,
-    decisionPosture: profile.decisionPosture,
     currency: candidate.currency,
     lateArrival: preferences?.late_arrival ?? false,
     needsSpace: preferences?.needs_space ?? false,
@@ -314,7 +295,6 @@ const toCommerceOffer = ({
             totalAfterTax: round2(candidate.price.amount),
             breakdown: pricingBreakdown,
     },
-    urgency,
     enhancements: enhancements.length > 0 ? enhancements : undefined,
     disclosures: disclosures.length > 0 ? disclosures : undefined,
   };
@@ -322,7 +302,6 @@ const toCommerceOffer = ({
 
 const buildEnhancements = ({
   tripType,
-  decisionPosture,
   currency,
   lateArrival,
   needsSpace,
@@ -332,7 +311,6 @@ const buildEnhancements = ({
   stayPolicy,
 }: {
   tripType: string;
-  decisionPosture: string;
   currency: string;
   lateArrival: boolean;
   needsSpace: boolean;
@@ -352,7 +330,7 @@ const buildEnhancements = ({
     });
   }
 
-  if (lateArrival || decisionPosture === "urgent") {
+  if (lateArrival) {
     const lateCheckoutAmount = centsToDollars(stayPolicy?.lateCheckoutFeeCents) ?? 35;
     const lateCheckoutCurrency = stayPolicy?.lateCheckoutCurrency ?? currency;
     const lateCheckoutTime = formatTime(stayPolicy?.lateCheckoutTime) ?? "2:00 PM";
@@ -510,9 +488,6 @@ const buildEmphasis = ({
   if (!secondarySavingsQualified) {
     return ["certainty"];
   }
-  if (profile.decisionPosture === "urgent") {
-    return ["speed", "certainty"];
-  }
   if (profile.tripType === "family") {
     return ["space", "low_anxiety"];
   }
@@ -525,13 +500,6 @@ const mapFallback = (code: FallbackActionCode, checkIn: string, checkOut: string
       type: "text_booking_link" as const,
       reason: "Some rate data needs confirmation; I can text a booking link.",
       requiresCapabilities: ["canTextLink", "hasWebBookingUrl"],
-    };
-  }
-  if (code === "FALLBACK_TRANSFER_FRONT_DESK") {
-    return {
-      type: "transfer_to_front_desk" as const,
-      reason: "Connecting you to the front desk for live assistance.",
-      requiresCapabilities: ["canTransferToFrontDesk"],
     };
   }
   if (code === "FALLBACK_WAITLIST") {
@@ -563,21 +531,6 @@ const buildAlternateDateSuggestions = (checkIn: string, checkOut: string): Array
     ];
   }
   return [];
-};
-
-const getRoomTierOverrides = async (propertyId: string): Promise<Record<string, "standard" | "deluxe" | "suite">> => {
-  try {
-    const rows = await prisma.roomTierOverride.findMany({
-      where: { propertyId },
-    });
-    return rows.reduce<Record<string, "standard" | "deluxe" | "suite">>((acc, row) => {
-      const tier = row.tier === "suite" || row.tier === "deluxe" ? row.tier : "standard";
-      acc[row.roomTypeId] = tier;
-      return acc;
-    }, {});
-  } catch {
-    return {};
-  }
 };
 
 const normalizeId = (value: string): string => value.toLowerCase();

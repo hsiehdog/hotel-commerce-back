@@ -19,7 +19,6 @@ const REASON_CODE_COPY: Record<string, string> = {
   SELECT_SECONDARY_SAFE: "Selected safe secondary to present a flexibility tradeoff.",
   FALLBACK_ALTERNATE_DATES: "Returning alternate date guidance because two comparable offers were unavailable.",
   FALLBACK_TEXT_LINK: "Returning booking link fallback to confirm exact pricing.",
-  FALLBACK_TRANSFER_FRONT_DESK: "Returning front desk transfer fallback based on capabilities/hours.",
   FALLBACK_WAITLIST: "Returning waitlist callback fallback.",
   FALLBACK_CONTACT_PROPERTY: "Returning contact-property fallback for web flow.",
   PROFILE_LATE_ARRIVAL: "Late arrival noted; did not refetch ARI (merchandising-only signal).",

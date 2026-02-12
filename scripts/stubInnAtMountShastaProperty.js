@@ -96,37 +96,6 @@ async function main() {
     },
   });
 
-  await prisma.propertyCommerceConfig.upsert({
-    where: { propertyId: PROPERTY_ID },
-    update: {
-      strategyMode: "balanced",
-      upsellPosture: "guest_first",
-      cancellationSensitivity: "high",
-      urgencyEnabled: true,
-      allowedUrgencyTypes: JSON.stringify(["scarcity_rooms"]),
-      defaultCurrency: "USD",
-      enableTextLink: false,
-      enableTransferFrontDesk: true,
-      enableWaitlist: true,
-      webBookingUrl: null,
-      version: 1,
-    },
-    create: {
-      propertyId: PROPERTY_ID,
-      strategyMode: "balanced",
-      upsellPosture: "guest_first",
-      cancellationSensitivity: "high",
-      urgencyEnabled: true,
-      allowedUrgencyTypes: JSON.stringify(["scarcity_rooms"]),
-      defaultCurrency: "USD",
-      enableTextLink: false,
-      enableTransferFrontDesk: true,
-      enableWaitlist: true,
-      webBookingUrl: null,
-      version: 1,
-    },
-  });
-
   await prisma.propertyAmenity.deleteMany({ where: { propertyId: PROPERTY_ID } });
   await prisma.propertyAmenity.createMany({
     data: AMENITY_KEYS.map((key) => ({

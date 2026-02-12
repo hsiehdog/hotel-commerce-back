@@ -1,9 +1,8 @@
 import { z } from "zod";
 import { ApiError } from "../../middleware/errorHandler";
 import { calendarDayDiff, formatInZone } from "../../utils/dateTime";
+import { prisma } from "../../lib/prisma";
 import { buildCommerceProfilePreAri } from "./buildCommerceProfile";
-import { getChannelCapabilities } from "./getChannelCapabilities";
-import { getPropertyStrategy } from "./getPropertyStrategy";
 import { resolvePropertyIdForRequest } from "../propertyContext/resolvePropertyIdForRequest";
 import type { NormalizedOfferRequest, OfferGenerateRequestV1 } from "./types";
 
@@ -48,13 +47,12 @@ export const parseOffersGenerateRequest = (raw: unknown): OfferGenerateRequestV1
 export const normalizeOfferRequest = async (raw: OfferGenerateRequestV1): Promise<NormalizedOfferRequest> => {
   const propertyResolution = await resolvePropertyIdForRequest(raw.property_id);
   const propertyId = propertyResolution.propertyId;
-  const strategy = await getPropertyStrategy(propertyId);
-  const capabilityResolution = await getChannelCapabilities(propertyId, {
-    enableTextLink: strategy.enableTextLink,
-    enableTransferFrontDesk: strategy.enableTransferFrontDesk,
-    enableWaitlist: strategy.enableWaitlist,
-    webBookingUrl: strategy.webBookingUrl,
-  });
+  const property = await prisma.property
+    .findUnique({
+      where: { id: propertyId },
+      select: { defaultCurrency: true },
+    })
+    .catch(() => null);
 
   const checkIn = raw.check_in;
   const checkOut = raw.check_out;
@@ -90,7 +88,7 @@ export const normalizeOfferRequest = async (raw: OfferGenerateRequestV1): Promis
     preferences: raw.preferences,
   });
 
-  const currency = raw.currency ?? strategy.defaultCurrency ?? "USD";
+  const currency = raw.currency ?? property?.defaultCurrency ?? "USD";
 
   return {
     propertyId,
@@ -106,9 +104,12 @@ export const normalizeOfferRequest = async (raw: OfferGenerateRequestV1): Promis
     nowUtcIso: now.toISOString(),
     nights,
     leadTimeDays,
-    strategyMode: strategy.strategyMode,
-    capabilities: capabilityResolution.capabilities,
-    isOpenNow: capabilityResolution.isOpenNow,
+    strategyMode: "balanced",
+    capabilities: {
+      canTextLink: false,
+      canCollectWaitlist: true,
+      hasWebBookingUrl: false,
+    },
     profile,
     preferences: raw.preferences,
     petFriendly: raw.pet_friendly,
@@ -117,9 +118,7 @@ export const normalizeOfferRequest = async (raw: OfferGenerateRequestV1): Promis
     budgetCap: raw.budget_cap,
     parkingNeeded: raw.parking_needed,
     stubScenario: raw.stub_scenario,
-    configVersion: strategy.configVersion,
-    urgencyEnabled: strategy.urgencyEnabled,
-    allowedUrgencyTypes: strategy.allowedUrgencyTypes,
+    configVersion: 1,
     debug: raw.debug ?? false,
     occupancyDistributed: occupancyNormalization.distributed,
   };

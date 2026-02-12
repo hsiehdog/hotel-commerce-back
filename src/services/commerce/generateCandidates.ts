@@ -3,12 +3,11 @@ import type { Candidate } from "./types";
 
 export const generateCandidates = (
   snapshot: AriSnapshot,
-  roomTierOverrides: Record<string, "standard" | "deluxe" | "suite"> = {},
 ): Candidate[] => {
   const candidates: Candidate[] = [];
 
   for (const roomType of snapshot.roomTypes) {
-    const roomTier = roomTierOverrides[roomType.roomTypeId] ?? resolveRoomTier(roomType.roomTypeName);
+    const roomTier = resolveRoomTier(roomType.roomTypeName);
     for (const plan of roomType.ratePlans) {
       const pricing = resolveCandidatePricing(plan.pricing);
       const includedFees = plan.pricing.includedFees

@@ -1,4 +1,4 @@
-export type StrategyMode = "balanced" | "protect_rate" | "fill_rooms";
+export type StrategyMode = "balanced";
 export type DecisionPosture = "certainty" | "price" | "experience" | "urgent";
 export type TripType = "family" | "business" | "couple" | "solo" | "group_lite";
 export type InventoryState = "low" | "normal" | "unknown";
@@ -15,7 +15,6 @@ export type ChannelType = "voice" | "web" | "agent";
 
 export type ChannelCapabilities = {
   canTextLink: boolean;
-  canTransferToFrontDesk: boolean;
   canCollectWaitlist: boolean;
   hasWebBookingUrl: boolean;
 };
@@ -61,7 +60,6 @@ export type NormalizedOfferRequest = {
   leadTimeDays: number;
   strategyMode: StrategyMode;
   capabilities: ChannelCapabilities;
-  isOpenNow: boolean;
   profile: CommerceProfile;
   preferences?: {
     needs_space?: boolean;
@@ -74,8 +72,6 @@ export type NormalizedOfferRequest = {
   parkingNeeded?: boolean;
   stubScenario?: string;
   configVersion: number;
-  urgencyEnabled: boolean;
-  allowedUrgencyTypes: string[];
   debug: boolean;
   occupancyDistributed: boolean;
 };
