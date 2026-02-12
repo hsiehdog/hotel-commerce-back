@@ -27,10 +27,34 @@ export type CommerceOffer = {
         basis: "afterTax" | "beforeTaxPlusTaxes";
         total: number;
         totalAfterTax: number;
+        breakdown?: {
+          baseRateSubtotal: number | null;
+          taxesAndFees: number | null;
+          includedFees: {
+            nights: number;
+            petFeePerNight: number | null;
+            parkingFeePerNight: number | null;
+            petFeeTotal: number | null;
+            parkingFeeTotal: number | null;
+            totalIncludedFees: number | null;
+          };
+        };
       }
     | {
         basis: "beforeTax";
         total: number;
+        breakdown?: {
+          baseRateSubtotal: number | null;
+          taxesAndFees: number | null;
+          includedFees: {
+            nights: number;
+            petFeePerNight: number | null;
+            parkingFeePerNight: number | null;
+            petFeeTotal: number | null;
+            parkingFeeTotal: number | null;
+            totalIncludedFees: number | null;
+          };
+        };
       };
   urgency?: {
     type: "scarcity_rooms";

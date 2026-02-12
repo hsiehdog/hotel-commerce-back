@@ -96,6 +96,10 @@ export type Candidate = {
     amount: number;
     basis: "afterTax" | "beforeTaxPlusTaxes" | "beforeTax";
     nightly?: Array<{ date: string; amount: number }>;
+    includedFees?: {
+      petFeePerNight: number;
+      parkingFeePerNight: number;
+    };
   };
   refundability: "refundable" | "non_refundable" | "unknown";
   paymentTiming: "pay_now" | "pay_at_property" | "unknown";

@@ -126,6 +126,10 @@ SUITE_ROOM_TYPE_IDS=RT_PREMIER_SUITE,RT_FAMILY_SUITE,RT_BUNK_SUITE pnpm stub:pro
     - if `property_id` is omitted or unknown, falls back to v1 defaults (`property_id="demo_property"`)
   - Channel default when omitted: `channel="voice"`
   - Response: `{ data: { propertyId, channel, currency, priceBasisUsed, offers, fallbackAction?, presentationHints, decisionTrace, configVersion } }`
+  - Pricing transparency:
+    - `offers[].pricing.breakdown.baseRateSubtotal` is room-only pre-tax subtotal.
+    - `offers[].pricing.breakdown.taxesAndFees` is the tax/fee component.
+    - `offers[].pricing.breakdown.includedFees` provides included pet/parking fee totals when known.
   - Validation errors:
     - `400` for invalid request schema/body
     - `422` for semantic clarification errors (e.g., missing/invalid date range)

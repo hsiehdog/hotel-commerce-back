@@ -13,7 +13,23 @@ type OfferResponsePayload = {
     offers: Array<{
       type: "SAFE" | "SAVER";
       recommended: boolean;
-      pricing?: { basis?: string; total?: number; totalAfterTax?: number };
+      pricing?: {
+        basis?: string;
+        total?: number;
+        totalAfterTax?: number;
+        breakdown?: {
+          baseRateSubtotal?: number | null;
+          taxesAndFees?: number | null;
+          includedFees?: {
+            nights?: number;
+            petFeePerNight?: number | null;
+            parkingFeePerNight?: number | null;
+            petFeeTotal?: number | null;
+            parkingFeeTotal?: number | null;
+            totalIncludedFees?: number | null;
+          };
+        };
+      };
       enhancements?: Array<{ id?: string; availability: string; disclosure?: string }>;
     }>;
     fallbackAction?: { type?: string } | null;
@@ -298,6 +314,45 @@ describe("commerce decision engine coverage", () => {
     expect(roomNames.every((name) => name.toLowerCase().includes("queen"))).toBe(true);
     const parkingEnhancement = payload.data.offers[0]?.enhancements?.find((item) => item.id === "addon_parking");
     expect(parkingEnhancement).toBeTruthy();
+  });
+
+  it("adds pricing breakdown for included pet and parking fees", async () => {
+    const req = {
+      body: {
+        property_id: "inn_at_mount_shasta",
+        channel: "web",
+        check_in: "2026-02-21",
+        check_out: "2026-02-23",
+        rooms: 1,
+        adults: 2,
+        pet_friendly: true,
+        parking_needed: true,
+        debug: true,
+      },
+    } as Parameters<typeof generateOffersForChannel>[0];
+    const res = createResponse();
+    const next = vi.fn();
+
+    await generateOffersForChannel(req, res, next as Parameters<typeof generateOffersForChannel>[2]);
+    expect(next).not.toHaveBeenCalled();
+
+    const payload = (res as unknown as { json: ReturnType<typeof vi.fn> }).json.mock.calls[0]?.[0] as OfferResponsePayload;
+    const breakdown = payload.data.offers[0]?.pricing?.breakdown;
+    const includedFees = breakdown?.includedFees;
+    expect(breakdown?.baseRateSubtotal).toBe(223);
+    expect(breakdown?.taxesAndFees).toBe(36.36);
+    expect(includedFees?.nights).toBe(2);
+    expect(includedFees?.petFeePerNight).toBe(25);
+    expect(includedFees?.parkingFeePerNight).toBe(15);
+    expect(includedFees?.petFeeTotal).toBe(50);
+    expect(includedFees?.parkingFeeTotal).toBe(30);
+    expect(includedFees?.totalIncludedFees).toBe(80);
+    const firstEnhancementIds = (payload.data.offers[0]?.enhancements ?? []).map((item) => item.id);
+    const secondEnhancementIds = (payload.data.offers[1]?.enhancements ?? []).map((item) => item.id);
+    expect(firstEnhancementIds).toContain("fee_pet_per_night");
+    expect(firstEnhancementIds).toContain("addon_parking");
+    expect(secondEnhancementIds).toContain("fee_pet_per_night");
+    expect(secondEnhancementIds).toContain("addon_parking");
   });
 
 });

@@ -11,6 +11,12 @@ export const generateCandidates = (
     const roomTier = roomTierOverrides[roomType.roomTypeId] ?? resolveRoomTier(roomType.roomTypeName);
     for (const plan of roomType.ratePlans) {
       const pricing = resolveCandidatePricing(plan.pricing);
+      const includedFees = plan.pricing.includedFees
+        ? {
+            petFeePerNight: plan.pricing.includedFees.petFeePerNight,
+            parkingFeePerNight: plan.pricing.includedFees.parkingFeePerNight,
+          }
+        : undefined;
       if (!pricing) {
         candidates.push({
           roomTypeId: roomType.roomTypeId,
@@ -27,6 +33,7 @@ export const generateCandidates = (
           price: {
             amount: NaN,
             basis: "beforeTax",
+            includedFees,
           },
           refundability: toRefundability(plan.refundability),
           paymentTiming: toPaymentTiming(plan.paymentTiming),
@@ -50,7 +57,10 @@ export const generateCandidates = (
         ratePlanId: plan.ratePlanId,
         ratePlanName: plan.ratePlanName,
         currency: plan.currency ?? snapshot.currency,
-        price: pricing,
+        price: {
+          ...pricing,
+          ...(includedFees ? { includedFees } : {}),
+        },
         refundability: toRefundability(plan.refundability),
         paymentTiming: toPaymentTiming(plan.paymentTiming),
         closedToArrival: plan.restrictions.cta,

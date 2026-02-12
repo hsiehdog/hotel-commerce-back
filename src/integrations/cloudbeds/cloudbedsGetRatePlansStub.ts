@@ -73,6 +73,10 @@ export type CloudbedsGetRatePlan = {
   totalRate?: number | null;
   taxesAndFees?: number | null;
   totalAfterTax?: number | null;
+  includedFees?: {
+    petFeePerNight: number;
+    parkingFeePerNight: number;
+  };
 };
 
 export const getRatePlansStub = (request: CloudbedsGetRatePlansRequest): CloudbedsGetRatePlansResponse => {
@@ -127,6 +131,8 @@ const buildRoomTypeForScenario = (
   const nonRefundTotal = round2(sumRates(nonRefundRates) * rooms);
   const flexibleTaxes = round2(flexibleTotal * CLOUDBEDS_ARI_ASSUMPTIONS.taxRate);
   const nonRefundTaxes = round2(nonRefundTotal * CLOUDBEDS_ARI_ASSUMPTIONS.taxRate);
+  const petFeePerNight = request.pet_friendly ? CLOUDBEDS_ARI_ASSUMPTIONS.petFriendlySurcharge : 0;
+  const parkingFeePerNight = request.parking_needed ? CLOUDBEDS_ARI_ASSUMPTIONS.parkingSurcharge : 0;
 
   const flexRatePlanId = isBusinessLateArrivalDemo ? "rp_king_flex" : CLOUDBEDS_RATE_PLAN_SEEDS.flexible.ratePlanId;
   const flexRatePlanName = isBusinessLateArrivalDemo ? "Flexible" : CLOUDBEDS_RATE_PLAN_SEEDS.flexible.ratePlanName;
@@ -151,6 +157,10 @@ const buildRoomTypeForScenario = (
       totalRate: flexibleTotal,
       taxesAndFees: flexibleTaxes,
       totalAfterTax: round2(flexibleTotal + flexibleTaxes),
+      includedFees: {
+        petFeePerNight,
+        parkingFeePerNight,
+      },
     },
     {
       ratePlanID: saverRatePlanId,
@@ -165,6 +175,10 @@ const buildRoomTypeForScenario = (
       totalRate: nonRefundTotal,
       taxesAndFees: nonRefundTaxes,
       totalAfterTax: round2(nonRefundTotal + nonRefundTaxes),
+      includedFees: {
+        petFeePerNight,
+        parkingFeePerNight,
+      },
     },
   ];
   if (isInnAtMountShasta) {

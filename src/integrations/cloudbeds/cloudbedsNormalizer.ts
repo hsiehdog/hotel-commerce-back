@@ -43,6 +43,12 @@ export const normalizeAriRawToSnapshot = (raw: CloudbedsAriRaw): AriSnapshot => 
               : typeof plan.totalRate === "number" && typeof plan.taxesAndFees === "number"
                 ? round2(plan.totalRate + plan.taxesAndFees)
                 : null,
+          includedFees: plan.includedFees
+            ? {
+                petFeePerNight: plan.includedFees.petFeePerNight,
+                parkingFeePerNight: plan.includedFees.parkingFeePerNight,
+              }
+            : undefined,
         },
         restrictions: {
           minLos: plan.detailedRates.reduce((max, rate) => Math.max(max, rate.minLos), 1),

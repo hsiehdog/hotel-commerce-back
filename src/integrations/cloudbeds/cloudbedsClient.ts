@@ -64,6 +64,10 @@ export type CloudbedsRatePlanRaw = {
   totalRate?: number | null;
   taxesAndFees?: number | null;
   totalAfterTax?: number | null;
+  includedFees?: {
+    petFeePerNight: number;
+    parkingFeePerNight: number;
+  };
 };
 
 export const getAriRaw = (request: CloudbedsAriRequest): CloudbedsAriRaw => {
@@ -121,6 +125,7 @@ export const getAriRaw = (request: CloudbedsAriRequest): CloudbedsAriRaw => {
         totalRate: plan.totalRate,
         taxesAndFees: plan.taxesAndFees,
         totalAfterTax: plan.totalAfterTax,
+        includedFees: plan.includedFees,
       })),
     })),
   };

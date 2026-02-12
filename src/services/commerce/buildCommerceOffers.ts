@@ -245,7 +245,6 @@ const toCommerceOffer = ({
       : null;
 
   const enhancements = buildEnhancements({
-    recommended,
     tripType: profile.tripType,
     decisionPosture: profile.decisionPosture,
     currency: candidate.currency,
@@ -253,6 +252,7 @@ const toCommerceOffer = ({
     needsSpace: preferences?.needs_space ?? false,
     petFriendly: petFriendly ?? false,
     parkingNeeded: parkingNeeded ?? false,
+    includedFees: candidate.price.includedFees,
     stayPolicy: propertyContext?.stayPolicy,
   });
   const cancellationPolicy = selectCancellationPolicy({
@@ -261,6 +261,12 @@ const toCommerceOffer = ({
     roomTypeId: candidate.roomTypeId,
   });
   const disclosures = buildDisclosures(propertyContext);
+  const pricingBreakdown = buildPricingBreakdown({
+    nights: candidate.price.nightly?.length ?? 1,
+    price: candidate.price,
+    petFriendly: petFriendly ?? false,
+    parkingNeeded: parkingNeeded ?? false,
+  });
 
   return {
     offerId: isBusinessLateArrivalDemo
@@ -300,11 +306,13 @@ const toCommerceOffer = ({
         ? {
             basis: "beforeTax",
             total: round2(candidate.price.amount),
+            breakdown: pricingBreakdown,
           }
         : {
             basis: candidate.price.basis,
             total: round2(candidate.price.amount),
             totalAfterTax: round2(candidate.price.amount),
+            breakdown: pricingBreakdown,
     },
     urgency,
     enhancements: enhancements.length > 0 ? enhancements : undefined,
@@ -313,7 +321,6 @@ const toCommerceOffer = ({
 };
 
 const buildEnhancements = ({
-  recommended,
   tripType,
   decisionPosture,
   currency,
@@ -321,9 +328,9 @@ const buildEnhancements = ({
   needsSpace,
   petFriendly,
   parkingNeeded,
+  includedFees,
   stayPolicy,
 }: {
-  recommended: boolean;
   tripType: string;
   decisionPosture: string;
   currency: string;
@@ -331,12 +338,9 @@ const buildEnhancements = ({
   needsSpace: boolean;
   petFriendly: boolean;
   parkingNeeded: boolean;
+  includedFees?: ScoredCandidate["price"]["includedFees"];
   stayPolicy?: PropertyContext["stayPolicy"];
 }) => {
-  if (!recommended) {
-    return [];
-  }
-
   const enhancements: CommerceOffer["enhancements"] = [];
   if (tripType === "family" || needsSpace) {
     enhancements.push({
@@ -362,11 +366,11 @@ const buildEnhancements = ({
     });
   }
 
-  const petFeeAmount = centsToDollars(stayPolicy?.petFeePerNightCents);
+  const petFeeAmount = includedFees?.petFeePerNight ?? centsToDollars(stayPolicy?.petFeePerNightCents) ?? 0;
   if (petFriendly && petFeeAmount !== null) {
     enhancements.push({
       id: "fee_pet_per_night",
-      name: "Dog fee (if bringing a dog)",
+      name: "Pet fee",
       price: {
         type: "perNight",
         amount: petFeeAmount,
@@ -384,7 +388,7 @@ const buildEnhancements = ({
     enhancements.push({
       id: "addon_parking",
       name: "Guest parking",
-      price: { type: "perNight", amount: 15, currency },
+      price: { type: "perNight", amount: includedFees?.parkingFeePerNight ?? 0, currency },
       availability: "info",
       whyShown: "preference_parking",
       disclosure: "Parking request noted; exact availability/charges confirmed at booking.",
@@ -392,6 +396,53 @@ const buildEnhancements = ({
   }
 
   return enhancements.slice(0, 3);
+};
+
+const buildPricingBreakdown = ({
+  nights,
+  price,
+  petFriendly,
+  parkingNeeded,
+}: {
+  nights: number;
+  price: ScoredCandidate["price"];
+  petFriendly: boolean;
+  parkingNeeded: boolean;
+}) => {
+  const safeNights = Math.max(1, nights);
+  const preTaxSubtotal =
+    Array.isArray(price.nightly) && price.nightly.length > 0
+      ? round2(price.nightly.reduce((sum, nightly) => sum + nightly.amount, 0))
+      : price.basis === "beforeTax"
+        ? round2(price.amount)
+        : null;
+  const petFeePerNight = petFriendly ? (price.includedFees?.petFeePerNight ?? 0) : 0;
+  const parkingFeePerNight = parkingNeeded ? (price.includedFees?.parkingFeePerNight ?? 0) : 0;
+  const petFeeTotal = petFeePerNight !== null ? round2(petFeePerNight * safeNights) : null;
+  const parkingFeeTotal = parkingFeePerNight !== null ? round2(parkingFeePerNight * safeNights) : null;
+
+  const totals = [petFeeTotal, parkingFeeTotal].filter((value): value is number => typeof value === "number");
+  const totalIncludedFees = totals.length > 0 ? round2(totals.reduce((sum, value) => sum + value, 0)) : null;
+  const baseRateSubtotal = preTaxSubtotal !== null ? round2(Math.max(0, preTaxSubtotal - (totalIncludedFees ?? 0))) : null;
+  const taxesAndFees =
+    baseRateSubtotal !== null && (price.basis === "afterTax" || price.basis === "beforeTaxPlusTaxes")
+      ? round2(Math.max(0, price.amount - baseRateSubtotal - (totalIncludedFees ?? 0)))
+      : price.basis === "beforeTax"
+        ? 0
+        : null;
+
+  return {
+    baseRateSubtotal,
+    taxesAndFees,
+    includedFees: {
+      nights: safeNights,
+      petFeePerNight,
+      parkingFeePerNight,
+      petFeeTotal,
+      parkingFeeTotal,
+      totalIncludedFees,
+    },
+  };
 };
 
 const buildDisclosures = (propertyContext: PropertyContext | null): string[] => {

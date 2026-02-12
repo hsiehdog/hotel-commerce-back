@@ -37,6 +37,10 @@ export type RatePlanSnapshot = {
     totalBeforeTax?: number | null;
     taxesAndFees?: number | null;
     totalAfterTax?: number | null;
+    includedFees?: {
+      petFeePerNight: number;
+      parkingFeePerNight: number;
+    };
   };
   restrictions: {
     minLos?: number;
