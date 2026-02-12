@@ -76,11 +76,27 @@ export const selectArchetypeOffers = ({
 
   let secondary = secondaryPool.find((candidate) => withinDeltaGuardrail(strategyMode, primary, candidate)) ?? null;
   let secondaryFailureReason: ArchetypeSelectionResult["secondaryFailureReason"] = null;
-  if (!secondary && secondaryPool.length === 0) {
+  const oppositePoolEmpty = secondaryPool.length === 0;
+  if (!secondary && oppositePoolEmpty) {
     reasonCodes.push("SECONDARY_POOL_EMPTY_OPPOSITE_ARCHETYPE");
-    secondaryFailureReason = "SECONDARY_POOL_EMPTY_OPPOSITE_ARCHETYPE";
-  }
-  if (!secondary && secondaryPool.length > 0) {
+    const sameArchetypeFallbackPool = scoredCandidates.filter(
+      (candidate) =>
+        candidate !== primary &&
+        candidate.archetype === primary.archetype &&
+        (candidate.ratePlanId !== primary.ratePlanId || candidate.roomTypeId !== primary.roomTypeId),
+    );
+    secondary =
+      sameArchetypeFallbackPool.find((candidate) => withinDeltaGuardrail(strategyMode, primary, candidate)) ?? null;
+    if (secondary) {
+      reasonCodes.push("SECONDARY_SAME_ARCHETYPE_FALLBACK");
+    } else {
+      secondaryFailureReason = "SECONDARY_POOL_EMPTY_OPPOSITE_ARCHETYPE";
+      if (sameArchetypeFallbackPool.length > 0) {
+        reasonCodes.push("SECONDARY_REJECTED_PRICE_SPREAD_GUARDRAIL");
+        secondaryFailureReason = "SECONDARY_REJECTED_PRICE_SPREAD_GUARDRAIL";
+      }
+    }
+  } else if (!secondary && secondaryPool.length > 0) {
     reasonCodes.push("SECONDARY_REJECTED_PRICE_SPREAD_GUARDRAIL");
     secondaryFailureReason = "SECONDARY_REJECTED_PRICE_SPREAD_GUARDRAIL";
     secondary = null;

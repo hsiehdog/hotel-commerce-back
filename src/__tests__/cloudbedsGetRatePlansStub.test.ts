@@ -46,4 +46,19 @@ describe("cloudbeds getRatePlans stub", () => {
     expect(invalidPlan?.totalAfterTax).toBeNull();
     expect(invalidPlan?.totalRate).toBeNull();
   });
+
+  it("uses a single flexible pricing type for inn_at_mount_shasta", () => {
+    const response = getRatePlansStub({
+      propertyId: "inn_at_mount_shasta",
+      checkIn: "2026-02-10",
+      checkOut: "2026-02-12",
+      adults: 2,
+      rooms: 1,
+      currency: "USD",
+    });
+
+    expect(response.roomTypes.length).toBeGreaterThan(0);
+    expect(response.roomTypes.every((roomType) => roomType.ratePlans.length === 1)).toBe(true);
+    expect(response.roomTypes[0]?.ratePlans[0]?.refundability).toBe("REFUNDABLE");
+  });
 });

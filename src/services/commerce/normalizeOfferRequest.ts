@@ -32,6 +32,11 @@ const topLevelSchema = z.object({
       late_arrival: z.boolean().optional(),
     })
     .optional(),
+  pet_friendly: z.boolean().optional(),
+  accessible_room: z.boolean().optional(),
+  needs_two_beds: z.boolean().optional(),
+  budget_cap: z.number().positive().optional(),
+  parking_needed: z.boolean().optional(),
   stub_scenario: z.string().optional(),
   debug: z.boolean().optional(),
 });
@@ -106,6 +111,11 @@ export const normalizeOfferRequest = async (raw: OfferGenerateRequestV1): Promis
     isOpenNow: capabilityResolution.isOpenNow,
     profile,
     preferences: raw.preferences,
+    petFriendly: raw.pet_friendly,
+    accessibleRoom: raw.accessible_room,
+    needsTwoBeds: raw.needs_two_beds,
+    budgetCap: raw.budget_cap,
+    parkingNeeded: raw.parking_needed,
     stubScenario: raw.stub_scenario,
     configVersion: strategy.configVersion,
     urgencyEnabled: strategy.urgencyEnabled,

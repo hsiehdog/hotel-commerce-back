@@ -1,0 +1,511 @@
+{
+  "data": {
+    "propertyId": "inn_at_mount_shasta",
+    "channel": "voice",
+    "currency": "USD",
+    "priceBasisUsed": "afterTax",
+    "offers": [
+      {
+        "offerId": "rp_flex",
+        "type": "SAFE",
+        "recommended": true,
+        "roomType": {
+          "id": "rt_king",
+          "name": "King Room",
+          "description": "At more than 325 sq ft, each King Room features a sitting area and is non-smoking with complimentary Wi-Fi, renovated shower bathroom, air conditioning, microwave, mini fridge, coffee maker, hair dryer, ceiling fan, and desk.",
+          "features": [
+            "Air-conditioning",
+            "Hairdryer",
+            "Cribs upon request",
+            "Cable television",
+            "Wireless internet (WiFi)",
+            "Ceiling fan",
+            "Coffee maker",
+            "Microwave",
+            "Mini fridge",
+            "Free parking"
+          ]
+        },
+        "ratePlan": {
+          "id": "rp_flex",
+          "name": "Flexible"
+        },
+        "policy": {
+          "refundability": "refundable",
+          "paymentTiming": "pay_at_property",
+          "cancellationSummary": "Free cancellation until 3:00 PM 3 days before arrival. Inside 72 hours, first night plus tax applies."
+        },
+        "pricing": {
+          "basis": "afterTax",
+          "total": 122.08,
+          "totalAfterTax": 122.08
+        },
+        "urgency": null,
+        "enhancements": [
+          {
+            "id": "addon_late_checkout",
+            "name": "Late checkout (12:00 PM)",
+            "price": {
+              "type": "perStay",
+              "amount": 25,
+              "currency": "USD"
+            },
+            "availability": "request",
+            "whyShown": "business_efficiency",
+            "disclosure": "Subject to availability at check-in."
+          },
+          {
+            "id": "fee_pet_per_night",
+            "name": "Dog fee (if bringing a dog)",
+            "price": {
+              "type": "perNight",
+              "amount": 25,
+              "currency": "USD"
+            },
+            "availability": "info",
+            "whyShown": "policy_pet_fee",
+            "disclosure": "Dog-friendly rooms are limited and must be noted at booking."
+          }
+        ],
+        "disclosures": [
+          "If arriving after 10:00 PM, please contact the hotel directly to make arrangements",
+          "Non-smoking property. Smoking incurs a minimum USD 250 charge.",
+          "At check-in, guests must present photo ID and credit card."
+        ]
+      },
+      {
+        "offerId": "rp_paynow",
+        "type": "SAVER",
+        "recommended": false,
+        "roomType": {
+          "id": "rt_king",
+          "name": "King Room",
+          "description": "At more than 325 sq ft, each King Room features a sitting area and is non-smoking with complimentary Wi-Fi, renovated shower bathroom, air conditioning, microwave, mini fridge, coffee maker, hair dryer, ceiling fan, and desk.",
+          "features": [
+            "Air-conditioning",
+            "Hairdryer",
+            "Cribs upon request",
+            "Cable television",
+            "Wireless internet (WiFi)",
+            "Ceiling fan",
+            "Coffee maker",
+            "Microwave",
+            "Mini fridge",
+            "Free parking"
+          ]
+        },
+        "ratePlan": {
+          "id": "rp_paynow",
+          "name": "Pay Now Saver"
+        },
+        "policy": {
+          "refundability": "non_refundable",
+          "paymentTiming": "pay_now",
+          "cancellationSummary": "This rate is non-refundable."
+        },
+        "pricing": {
+          "basis": "afterTax",
+          "total": 103.77,
+          "totalAfterTax": 103.77
+        },
+        "urgency": null,
+        "disclosures": [
+          "If arriving after 10:00 PM, please contact the hotel directly to make arrangements",
+          "Non-smoking property. Smoking incurs a minimum USD 250 charge.",
+          "At check-in, guests must present photo ID and credit card."
+        ]
+      }
+    ],
+    "presentationHints": {
+      "emphasis": [
+        "speed",
+        "certainty"
+      ],
+      "urgency": null
+    },
+    "configVersion": 1,
+    "debug": {
+      "resolvedRequest": {
+        "propertyId": "inn_at_mount_shasta",
+        "channel": "voice",
+        "checkIn": "2026-03-11",
+        "checkOut": "2026-03-12",
+        "rooms": 1,
+        "roomOccupancies": [
+          {
+            "adults": 1,
+            "children": 0
+          }
+        ],
+        "currency": "USD",
+        "strategyMode": "protect_rate"
+      },
+      "profilePreAri": {
+        "tripType": "business",
+        "decisionPosture": "urgent",
+        "leadTimeDays": 28,
+        "nights": 1
+      },
+      "profileFinal": {
+        "inventoryState": "normal"
+      },
+      "selectionSummary": {
+        "primaryArchetype": "SAFE",
+        "saverPrimaryExceptionApplied": false,
+        "secondaryAttempted": true,
+        "secondaryFailureReason": null
+      },
+      "reasonCodes": [
+        "SELECT_PRIMARY_SAFE",
+        "SELECT_SECONDARY_SAVER",
+        "ENHANCEMENT_ATTACHED"
+      ],
+      "topCandidates": [
+        {
+          "roomTypeId": "RT_KING",
+          "roomTypeName": "King Room",
+          "roomTypeDescription": "At more than 325 sq ft, each King Room features a sitting area and is non-smoking with complimentary Wi-Fi, renovated shower bathroom, air conditioning, microwave, mini fridge, coffee maker, hair dryer, ceiling fan, and desk.",
+          "features": [
+            "Air-conditioning",
+            "Hairdryer",
+            "Cribs upon request",
+            "Cable television",
+            "Wireless internet (WiFi)",
+            "Ceiling fan",
+            "Coffee maker",
+            "Microwave",
+            "Mini fridge",
+            "Free parking"
+          ],
+          "ratePlanId": "RP_FLEX",
+          "roomsAvailable": 3,
+          "riskContributors": [],
+          "basis": "afterTax",
+          "totalPrice": 122.08,
+          "archetype": "SAFE",
+          "scoreTotal": 57.96342156964119,
+          "components": {
+            "valueScore": 81.06710784820598,
+            "conversionScore": 85,
+            "experienceScore": 20,
+            "riskScore": 0,
+            "marginProxyScore": 18.932892151794025
+          }
+        },
+        {
+          "roomTypeId": "RT_ACC_QN",
+          "roomTypeName": "Accessible Two Queen Room",
+          "roomTypeDescription": "At more than 325 sq ft, this Accessible Two Queen Room includes standard Two Queen amenities with mobility-access bathroom features including wide doorway, grab bars, shower seat availability, and roll-under sink.",
+          "features": [
+            "Ceiling fan",
+            "Cribs upon request",
+            "Air-conditioning",
+            "Coffee maker",
+            "Wireless internet (WiFi)",
+            "Cable television",
+            "Hairdryer",
+            "Microwave",
+            "Mini fridge",
+            "Free parking"
+          ],
+          "ratePlanId": "RP_FLEX",
+          "roomsAvailable": 1,
+          "riskContributors": [
+            "LOW_INVENTORY"
+          ],
+          "basis": "afterTax",
+          "totalPrice": 133.28,
+          "archetype": "SAFE",
+          "scoreTotal": 53.39721848826388,
+          "components": {
+            "valueScore": 69.4860924413194,
+            "conversionScore": 85,
+            "experienceScore": 20,
+            "riskScore": 15,
+            "marginProxyScore": 30.513907558680597
+          }
+        },
+        {
+          "roomTypeId": "RT_QN",
+          "roomTypeName": "Two Queen Room",
+          "roomTypeDescription": "At more than 325 sq ft, each Two Queen Room features two queen beds and a private bathroom with tub. Rooms are non-smoking and include Wi-Fi, air conditioning, microwave, mini fridge, coffee maker, hair dryer, ceiling fan, and desk.",
+          "features": [
+            "Ceiling fan",
+            "Air-conditioning",
+            "Coffee maker",
+            "Wireless internet (WiFi)",
+            "Cribs upon request",
+            "Cable television",
+            "Hairdryer",
+            "Microwave",
+            "Free parking",
+            "Mini fridge"
+          ],
+          "ratePlanId": "RP_FLEX",
+          "roomsAvailable": 2,
+          "riskContributors": [
+            "LOW_INVENTORY"
+          ],
+          "basis": "afterTax",
+          "totalPrice": 133.28,
+          "archetype": "SAFE",
+          "scoreTotal": 53.39721848826388,
+          "components": {
+            "valueScore": 69.4860924413194,
+            "conversionScore": 85,
+            "experienceScore": 20,
+            "riskScore": 15,
+            "marginProxyScore": 30.513907558680597
+          }
+        },
+        {
+          "roomTypeId": "RT_BUNK_SUITE",
+          "roomTypeName": "Bunk Suite",
+          "roomTypeDescription": "At nearly 400 sq ft, Bunk Suite features a King bed and Queen-Full bunk bed, private bathroom with tub, table/chairs, non-smoking setup, Wi-Fi, air conditioning, microwave, mini fridge, coffee maker, and hair dryer.",
+          "features": [
+            "Ceiling fan",
+            "Cribs upon request",
+            "Air-conditioning",
+            "Coffee maker",
+            "Wireless internet (WiFi)",
+            "Cable television",
+            "Hairdryer",
+            "Microwave",
+            "Mini fridge",
+            "Free parking"
+          ],
+          "ratePlanId": "RP_FLEX",
+          "roomsAvailable": 1,
+          "riskContributors": [
+            "LOW_INVENTORY"
+          ],
+          "basis": "afterTax",
+          "totalPrice": 178.08,
+          "archetype": "SAFE",
+          "scoreTotal": 50.13240616275462,
+          "components": {
+            "valueScore": 23.162030813773114,
+            "conversionScore": 85,
+            "experienceScore": 80,
+            "riskScore": 15,
+            "marginProxyScore": 76.83796918622689
+          }
+        },
+        {
+          "roomTypeId": "RT_PREMIER_SUITE",
+          "roomTypeName": "Premier Suite",
+          "roomTypeDescription": "At nearly 600 sq ft, Premier Suite has two separate bedrooms, pullout sofa, dining table, desk, and non-smoking setup with Wi-Fi, renovated bathroom with tub, air conditioning, microwave, mini fridge, and coffee maker.",
+          "features": [
+            "Ceiling fan",
+            "Cribs upon request",
+            "Air-conditioning",
+            "Coffee maker",
+            "Wireless internet (WiFi)",
+            "Cable television",
+            "Hairdryer",
+            "Microwave",
+            "Mini fridge",
+            "Free parking",
+            "Sleep sofa"
+          ],
+          "ratePlanId": "RP_FLEX",
+          "roomsAvailable": 1,
+          "riskContributors": [
+            "LOW_INVENTORY"
+          ],
+          "basis": "afterTax",
+          "totalPrice": 200.48,
+          "archetype": "SAFE",
+          "scoreTotal": 45.5,
+          "components": {
+            "valueScore": 0,
+            "conversionScore": 85,
+            "experienceScore": 80,
+            "riskScore": 15,
+            "marginProxyScore": 100
+          }
+        },
+        {
+          "roomTypeId": "RT_KING",
+          "roomTypeName": "King Room",
+          "roomTypeDescription": "At more than 325 sq ft, each King Room features a sitting area and is non-smoking with complimentary Wi-Fi, renovated shower bathroom, air conditioning, microwave, mini fridge, coffee maker, hair dryer, ceiling fan, and desk.",
+          "features": [
+            "Air-conditioning",
+            "Hairdryer",
+            "Cribs upon request",
+            "Cable television",
+            "Wireless internet (WiFi)",
+            "Ceiling fan",
+            "Coffee maker",
+            "Microwave",
+            "Mini fridge",
+            "Free parking"
+          ],
+          "ratePlanId": "RP_PAYNOW",
+          "roomsAvailable": 3,
+          "riskContributors": [
+            "NON_REFUNDABLE",
+            "PAY_NOW"
+          ],
+          "basis": "afterTax",
+          "totalPrice": 103.77,
+          "archetype": "SAVER",
+          "scoreTotal": 34,
+          "components": {
+            "valueScore": 100,
+            "conversionScore": 25,
+            "experienceScore": 20,
+            "riskScore": 45,
+            "marginProxyScore": 0
+          }
+        },
+        {
+          "roomTypeId": "RT_ACC_QN",
+          "roomTypeName": "Accessible Two Queen Room",
+          "roomTypeDescription": "At more than 325 sq ft, this Accessible Two Queen Room includes standard Two Queen amenities with mobility-access bathroom features including wide doorway, grab bars, shower seat availability, and roll-under sink.",
+          "features": [
+            "Ceiling fan",
+            "Cribs upon request",
+            "Air-conditioning",
+            "Coffee maker",
+            "Wireless internet (WiFi)",
+            "Cable television",
+            "Hairdryer",
+            "Microwave",
+            "Mini fridge",
+            "Free parking"
+          ],
+          "ratePlanId": "RP_PAYNOW",
+          "roomsAvailable": 1,
+          "riskContributors": [
+            "NON_REFUNDABLE",
+            "PAY_NOW",
+            "LOW_INVENTORY"
+          ],
+          "basis": "afterTax",
+          "totalPrice": 113.29,
+          "archetype": "SAVER",
+          "scoreTotal": 29.78122738082928,
+          "components": {
+            "valueScore": 90.15613690414641,
+            "conversionScore": 25,
+            "experienceScore": 20,
+            "riskScore": 60,
+            "marginProxyScore": 9.843863095853594
+          }
+        },
+        {
+          "roomTypeId": "RT_QN",
+          "roomTypeName": "Two Queen Room",
+          "roomTypeDescription": "At more than 325 sq ft, each Two Queen Room features two queen beds and a private bathroom with tub. Rooms are non-smoking and include Wi-Fi, air conditioning, microwave, mini fridge, coffee maker, hair dryer, ceiling fan, and desk.",
+          "features": [
+            "Ceiling fan",
+            "Air-conditioning",
+            "Coffee maker",
+            "Wireless internet (WiFi)",
+            "Cribs upon request",
+            "Cable television",
+            "Hairdryer",
+            "Microwave",
+            "Free parking",
+            "Mini fridge"
+          ],
+          "ratePlanId": "RP_PAYNOW",
+          "roomsAvailable": 2,
+          "riskContributors": [
+            "NON_REFUNDABLE",
+            "PAY_NOW",
+            "LOW_INVENTORY"
+          ],
+          "basis": "afterTax",
+          "totalPrice": 113.29,
+          "archetype": "SAVER",
+          "scoreTotal": 29.78122738082928,
+          "components": {
+            "valueScore": 90.15613690414641,
+            "conversionScore": 25,
+            "experienceScore": 20,
+            "riskScore": 60,
+            "marginProxyScore": 9.843863095853594
+          }
+        },
+        {
+          "roomTypeId": "RT_BUNK_SUITE",
+          "roomTypeName": "Bunk Suite",
+          "roomTypeDescription": "At nearly 400 sq ft, Bunk Suite features a King bed and Queen-Full bunk bed, private bathroom with tub, table/chairs, non-smoking setup, Wi-Fi, air conditioning, microwave, mini fridge, coffee maker, and hair dryer.",
+          "features": [
+            "Ceiling fan",
+            "Cribs upon request",
+            "Air-conditioning",
+            "Coffee maker",
+            "Wireless internet (WiFi)",
+            "Cable television",
+            "Hairdryer",
+            "Microwave",
+            "Mini fridge",
+            "Free parking"
+          ],
+          "ratePlanId": "RP_PAYNOW",
+          "roomsAvailable": 1,
+          "riskContributors": [
+            "NON_REFUNDABLE",
+            "PAY_NOW",
+            "LOW_INVENTORY"
+          ],
+          "basis": "afterTax",
+          "totalPrice": 151.37,
+          "archetype": "SAVER",
+          "scoreTotal": 27.906136904146415,
+          "components": {
+            "valueScore": 50.78068452073207,
+            "conversionScore": 25,
+            "experienceScore": 80,
+            "riskScore": 60,
+            "marginProxyScore": 49.21931547926793
+          }
+        },
+        {
+          "roomTypeId": "RT_PREMIER_SUITE",
+          "roomTypeName": "Premier Suite",
+          "roomTypeDescription": "At nearly 600 sq ft, Premier Suite has two separate bedrooms, pullout sofa, dining table, desk, and non-smoking setup with Wi-Fi, renovated bathroom with tub, air conditioning, microwave, mini fridge, and coffee maker.",
+          "features": [
+            "Ceiling fan",
+            "Cribs upon request",
+            "Air-conditioning",
+            "Coffee maker",
+            "Wireless internet (WiFi)",
+            "Cable television",
+            "Hairdryer",
+            "Microwave",
+            "Mini fridge",
+            "Free parking",
+            "Sleep sofa"
+          ],
+          "ratePlanId": "RP_PAYNOW",
+          "roomsAvailable": 1,
+          "riskContributors": [
+            "NON_REFUNDABLE",
+            "PAY_NOW",
+            "LOW_INVENTORY"
+          ],
+          "basis": "afterTax",
+          "totalPrice": 170.41,
+          "archetype": "SAVER",
+          "scoreTotal": 23.968591665804986,
+          "components": {
+            "valueScore": 31.092958329024913,
+            "conversionScore": 25,
+            "experienceScore": 80,
+            "riskScore": 60,
+            "marginProxyScore": 68.90704167097509
+          }
+        }
+      ]
+    },
+    "decisionTrace": [
+      "Selected refundable primary offer for conversion stability.",
+      "Selected saver secondary to present a clear policy/price tradeoff.",
+      "Attached late checkout as request-only enhancement (inventory constrained)."
+    ]
+  }
+}

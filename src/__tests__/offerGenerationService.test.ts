@@ -123,11 +123,11 @@ describe("offer generation service", () => {
       return;
     }
 
-    expect(primary.rate_type).toBe("flexible");
-    expect(primary.commerce_metadata?.saverPrimaryExceptionApplied).toBe(false);
+    expect(primary.rate_type).toBe("non_refundable");
+    expect(primary.commerce_metadata?.saverPrimaryExceptionApplied).toBe(true);
   });
 
-  it("drops mismatched currency candidates and can still return one valid offer", async () => {
+  it("drops mismatched-currency SAVER candidates and still returns two SAFE offers", async () => {
     const first = await generateOffers({
       currentIntent: createEmptyOfferIntent(),
       args: {
@@ -160,8 +160,11 @@ describe("offer generation service", () => {
       return;
     }
 
-    expect(second.offers).toHaveLength(1);
+    expect(second.offers).toHaveLength(2);
+    expect(second.offers[0]?.rate_type).toBe("flexible");
+    expect(second.offers[1]?.rate_type).toBe("flexible");
     expect(second.offers[0]?.price.currency).toBe("USD");
+    expect(second.offers[1]?.price.currency).toBe("USD");
   });
 
   it("falls back safely when all pricing fields are invalid", async () => {

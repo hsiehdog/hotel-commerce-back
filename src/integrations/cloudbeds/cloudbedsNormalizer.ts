@@ -16,6 +16,7 @@ export const normalizeAriRawToSnapshot = (raw: CloudbedsAriRaw): AriSnapshot => 
       roomTypeName: roomType.roomTypeName,
       roomTypeDescription: roomType.roomTypeDescription,
       features: roomType.features,
+      isAccessible: roomType.isAccessible,
       maxOccupancy: roomType.maxOccupancy,
       roomsAvailable: roomType.roomsAvailable,
       totalInventory: roomType.totalInventory ?? null,

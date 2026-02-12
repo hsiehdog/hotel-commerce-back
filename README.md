@@ -120,7 +120,7 @@ SUITE_ROOM_TYPE_IDS=RT_PREMIER_SUITE,RT_FAMILY_SUITE,RT_BUNK_SUITE pnpm stub:pro
 
 - `POST /offers/generate` (no auth required)
   - Request shape:
-    - Canonical top-level: `{ property_id, channel, check_in, check_out, adults, rooms, ... }`
+    - Canonical top-level: `{ property_id, channel, check_in, check_out, adults, rooms, children?, child_ages?, roomOccupancies?, currency?, preferences?, pet_friendly?, accessible_room?, needs_two_beds?, budget_cap?, parking_needed?, stub_scenario?, debug? }`
   - Property resolution:
     - if `property_id` exists in DB, that property is used
     - if `property_id` is omitted or unknown, falls back to v1 defaults (`property_id="demo_property"`)
@@ -191,6 +191,7 @@ The commerce engine runs this deterministic pipeline:
 - restrictions (`cta`, `ctd`, `minLos`, `maxLos`)
 - currency exact match (no FX)
 - pricing basis validity
+- request constraints passed through to ARI source (`accessible_room`, `needs_two_beds`, `pet_friendly`, `parking_needed`, `budget_cap`)
 
 4. Basis-group scoring
 - Prefer `afterTax` candidate group; fallback to `beforeTaxPlusTaxes`, then `beforeTax`.
@@ -210,9 +211,11 @@ The commerce engine runs this deterministic pipeline:
 5. Archetype selection
 - Primary defaults to best `SAFE`.
 - Saver-primary exception allowed only under low inventory + required price-delta threshold.
-- Secondary is selected from opposite archetype if guardrails pass.
+- Secondary selection order:
+  - opposite archetype if guardrails pass
+  - if opposite archetype is unavailable, fallback to same-archetype secondary if guardrails pass
 - Secondary selection must satisfy:
-  - opposite archetype
+  - opposite archetype first, then same-archetype fallback only when opposite is unavailable
   - same currency
   - same active pricing basis group
   - strategy price-spread guardrails (`%` and `$`)
@@ -226,7 +229,8 @@ The commerce engine runs this deterministic pipeline:
 - Enhancements are attached after base ranking and do not alter selection.
 - Family/space -> breakfast (`info`)
 - Late-arrival/urgent -> late checkout (`request` + disclosure), amount/time from `property_stay_policies` when configured
-- Pet fee can be attached as policy-driven `info` enhancement from `property_stay_policies`
+- `pet_friendly=true` -> pet fee policy enhancement (`info`) when configured in `property_stay_policies`
+- `parking_needed=true` -> parking enhancement (`info`) to confirm parking request and charges
 - Policy disclosures (after-hours arrival, smoking penalties, check-in requirements) are attached from property context
 
 7. Fallback matrix
@@ -334,6 +338,10 @@ Supported local/test scenarios via `stub_scenario`:
 - `constraint_min_los`
 
 These scenarios are for local testing and decision-engine verification.
+Property-specific stub behavior:
+- `demo_property` uses both flexible (SAFE) and pay-now saver (SAVER) rate plans.
+- `inn_at_mount_shasta` stub uses a single pricing type (flexible only).
+- Room accessibility is represented as structured metadata (`isAccessible`), and stubbed data infers it from room title/description text (`accessible`/`mobility`).
 
 ## Manual Offer Testing
 

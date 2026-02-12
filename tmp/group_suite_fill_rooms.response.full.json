@@ -1,0 +1,311 @@
+{
+  "data": {
+    "propertyId": "inn_at_mount_shasta",
+    "channel": "voice",
+    "currency": "USD",
+    "priceBasisUsed": "afterTax",
+    "offers": [
+      {
+        "offerId": "rp_flex",
+        "type": "SAFE",
+        "recommended": true,
+        "roomType": {
+          "id": "rt_bunk_suite",
+          "name": "Bunk Suite",
+          "description": "At nearly 400 sq ft, Bunk Suite features a King bed and Queen-Full bunk bed, private bathroom with tub, table/chairs, non-smoking setup, Wi-Fi, air conditioning, microwave, mini fridge, coffee maker, and hair dryer.",
+          "features": [
+            "Ceiling fan",
+            "Cribs upon request",
+            "Air-conditioning",
+            "Coffee maker",
+            "Wireless internet (WiFi)",
+            "Cable television",
+            "Hairdryer",
+            "Microwave",
+            "Mini fridge",
+            "Free parking"
+          ]
+        },
+        "ratePlan": {
+          "id": "rp_flex",
+          "name": "Flexible"
+        },
+        "policy": {
+          "refundability": "refundable",
+          "paymentTiming": "pay_at_property",
+          "cancellationSummary": "For selected suites May 1-Sep 30, free cancellation until 3:00 PM 7 days before arrival. Inside 7 days, 100% of stay applies."
+        },
+        "pricing": {
+          "basis": "afterTax",
+          "total": 496.16,
+          "totalAfterTax": 496.16
+        },
+        "urgency": null,
+        "enhancements": [
+          {
+            "id": "addon_breakfast",
+            "name": "Breakfast",
+            "price": {
+              "type": "perPersonPerNight",
+              "amount": 18,
+              "currency": "USD"
+            },
+            "availability": "info",
+            "whyShown": "family_fit"
+          },
+          {
+            "id": "fee_pet_per_night",
+            "name": "Dog fee (if bringing a dog)",
+            "price": {
+              "type": "perNight",
+              "amount": 25,
+              "currency": "USD"
+            },
+            "availability": "info",
+            "whyShown": "policy_pet_fee",
+            "disclosure": "Dog-friendly rooms are limited and must be noted at booking."
+          }
+        ],
+        "disclosures": [
+          "If arriving after 10:00 PM, please contact the hotel directly to make arrangements",
+          "Non-smoking property. Smoking incurs a minimum USD 250 charge.",
+          "At check-in, guests must present photo ID and credit card."
+        ]
+      },
+      {
+        "offerId": "rp_paynow",
+        "type": "SAVER",
+        "recommended": false,
+        "roomType": {
+          "id": "rt_bunk_suite",
+          "name": "Bunk Suite",
+          "description": "At nearly 400 sq ft, Bunk Suite features a King bed and Queen-Full bunk bed, private bathroom with tub, table/chairs, non-smoking setup, Wi-Fi, air conditioning, microwave, mini fridge, coffee maker, and hair dryer.",
+          "features": [
+            "Ceiling fan",
+            "Cribs upon request",
+            "Air-conditioning",
+            "Coffee maker",
+            "Wireless internet (WiFi)",
+            "Cable television",
+            "Hairdryer",
+            "Microwave",
+            "Mini fridge",
+            "Free parking"
+          ]
+        },
+        "ratePlan": {
+          "id": "rp_paynow",
+          "name": "Pay Now Saver"
+        },
+        "policy": {
+          "refundability": "non_refundable",
+          "paymentTiming": "pay_now",
+          "cancellationSummary": "This rate is non-refundable."
+        },
+        "pricing": {
+          "basis": "afterTax",
+          "total": 422.58,
+          "totalAfterTax": 422.58
+        },
+        "urgency": null,
+        "disclosures": [
+          "If arriving after 10:00 PM, please contact the hotel directly to make arrangements",
+          "Non-smoking property. Smoking incurs a minimum USD 250 charge.",
+          "At check-in, guests must present photo ID and credit card."
+        ]
+      }
+    ],
+    "presentationHints": {
+      "emphasis": [
+        "value",
+        "certainty"
+      ],
+      "urgency": null
+    },
+    "configVersion": 1,
+    "debug": {
+      "resolvedRequest": {
+        "propertyId": "inn_at_mount_shasta",
+        "channel": "voice",
+        "checkIn": "2026-08-14",
+        "checkOut": "2026-08-16",
+        "rooms": 1,
+        "roomOccupancies": [
+          {
+            "adults": 5,
+            "children": 0
+          }
+        ],
+        "currency": "USD",
+        "strategyMode": "fill_rooms"
+      },
+      "profilePreAri": {
+        "tripType": "group_lite",
+        "decisionPosture": "price",
+        "leadTimeDays": 184,
+        "nights": 2
+      },
+      "profileFinal": {
+        "inventoryState": "low"
+      },
+      "selectionSummary": {
+        "primaryArchetype": "SAFE",
+        "saverPrimaryExceptionApplied": false,
+        "secondaryAttempted": true,
+        "secondaryFailureReason": null
+      },
+      "reasonCodes": [
+        "SELECT_PRIMARY_SAFE",
+        "SELECT_SECONDARY_SAVER",
+        "PROFILE_FAMILY_SPACE",
+        "ENHANCEMENT_ATTACHED"
+      ],
+      "topCandidates": [
+        {
+          "roomTypeId": "RT_BUNK_SUITE",
+          "roomTypeName": "Bunk Suite",
+          "roomTypeDescription": "At nearly 400 sq ft, Bunk Suite features a King bed and Queen-Full bunk bed, private bathroom with tub, table/chairs, non-smoking setup, Wi-Fi, air conditioning, microwave, mini fridge, coffee maker, and hair dryer.",
+          "features": [
+            "Ceiling fan",
+            "Cribs upon request",
+            "Air-conditioning",
+            "Coffee maker",
+            "Wireless internet (WiFi)",
+            "Cable television",
+            "Hairdryer",
+            "Microwave",
+            "Mini fridge",
+            "Free parking"
+          ],
+          "ratePlanId": "RP_FLEX",
+          "roomsAvailable": 1,
+          "riskContributors": [
+            "LOW_INVENTORY"
+          ],
+          "basis": "afterTax",
+          "totalPrice": 496.16,
+          "archetype": "SAFE",
+          "scoreTotal": 53.06884608886635,
+          "components": {
+            "valueScore": 37.84423044433181,
+            "conversionScore": 85,
+            "experienceScore": 80,
+            "riskScore": 15,
+            "marginProxyScore": 62.15576955566819
+          }
+        },
+        {
+          "roomTypeId": "RT_PREMIER_SUITE",
+          "roomTypeName": "Premier Suite",
+          "roomTypeDescription": "At nearly 600 sq ft, Premier Suite has two separate bedrooms, pullout sofa, dining table, desk, and non-smoking setup with Wi-Fi, renovated bathroom with tub, air conditioning, microwave, mini fridge, and coffee maker.",
+          "features": [
+            "Ceiling fan",
+            "Cribs upon request",
+            "Air-conditioning",
+            "Coffee maker",
+            "Wireless internet (WiFi)",
+            "Cable television",
+            "Hairdryer",
+            "Microwave",
+            "Mini fridge",
+            "Free parking",
+            "Sleep sofa"
+          ],
+          "ratePlanId": "RP_FLEX",
+          "roomsAvailable": 1,
+          "riskContributors": [
+            "LOW_INVENTORY"
+          ],
+          "basis": "afterTax",
+          "totalPrice": 540.96,
+          "archetype": "SAFE",
+          "scoreTotal": 45.5,
+          "components": {
+            "valueScore": 0,
+            "conversionScore": 85,
+            "experienceScore": 80,
+            "riskScore": 15,
+            "marginProxyScore": 100
+          }
+        },
+        {
+          "roomTypeId": "RT_BUNK_SUITE",
+          "roomTypeName": "Bunk Suite",
+          "roomTypeDescription": "At nearly 400 sq ft, Bunk Suite features a King bed and Queen-Full bunk bed, private bathroom with tub, table/chairs, non-smoking setup, Wi-Fi, air conditioning, microwave, mini fridge, coffee maker, and hair dryer.",
+          "features": [
+            "Ceiling fan",
+            "Cribs upon request",
+            "Air-conditioning",
+            "Coffee maker",
+            "Wireless internet (WiFi)",
+            "Cable television",
+            "Hairdryer",
+            "Microwave",
+            "Mini fridge",
+            "Free parking"
+          ],
+          "ratePlanId": "RP_PAYNOW",
+          "roomsAvailable": 1,
+          "riskContributors": [
+            "NON_REFUNDABLE",
+            "PAY_NOW",
+            "LOW_INVENTORY"
+          ],
+          "basis": "afterTax",
+          "totalPrice": 422.58,
+          "archetype": "SAVER",
+          "scoreTotal": 37.75,
+          "components": {
+            "valueScore": 100,
+            "conversionScore": 25,
+            "experienceScore": 80,
+            "riskScore": 60,
+            "marginProxyScore": 0
+          }
+        },
+        {
+          "roomTypeId": "RT_PREMIER_SUITE",
+          "roomTypeName": "Premier Suite",
+          "roomTypeDescription": "At nearly 600 sq ft, Premier Suite has two separate bedrooms, pullout sofa, dining table, desk, and non-smoking setup with Wi-Fi, renovated bathroom with tub, air conditioning, microwave, mini fridge, and coffee maker.",
+          "features": [
+            "Ceiling fan",
+            "Cribs upon request",
+            "Air-conditioning",
+            "Coffee maker",
+            "Wireless internet (WiFi)",
+            "Cable television",
+            "Hairdryer",
+            "Microwave",
+            "Mini fridge",
+            "Free parking",
+            "Sleep sofa"
+          ],
+          "ratePlanId": "RP_PAYNOW",
+          "roomsAvailable": 1,
+          "riskContributors": [
+            "NON_REFUNDABLE",
+            "PAY_NOW",
+            "LOW_INVENTORY"
+          ],
+          "basis": "afterTax",
+          "totalPrice": 460.66,
+          "archetype": "SAVER",
+          "scoreTotal": 31.31648082446359,
+          "components": {
+            "valueScore": 67.83240412231794,
+            "conversionScore": 25,
+            "experienceScore": 80,
+            "riskScore": 60,
+            "marginProxyScore": 32.16759587768206
+          }
+        }
+      ]
+    },
+    "decisionTrace": [
+      "Selected refundable primary offer for conversion stability.",
+      "Selected saver secondary to present a clear policy/price tradeoff.",
+      "Family/space profile influenced presentation and enhancements.",
+      "Attached late checkout as request-only enhancement (inventory constrained)."
+    ]
+  }
+}

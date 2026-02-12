@@ -1,0 +1,25 @@
+{
+  "property_id": "inn_at_mount_shasta",
+  "channel": "voice",
+  "check_in": "2026-07-17",
+  "check_out": "2026-07-20",
+  "rooms": 1,
+  "adults": 2,
+  "children": 2,
+  "child_ages": [
+    7,
+    10
+  ],
+  "roomOccupancies": [
+    {
+      "adults": 2,
+      "children": 2
+    }
+  ],
+  "currency": "USD",
+  "preferences": {
+    "needs_space": true,
+    "late_arrival": false
+  },
+  "debug": true
+}

@@ -45,6 +45,7 @@ export type CloudbedsGetRatePlansRoomType = {
   roomTypeName: string;
   roomTypeDescription?: string;
   features?: string[];
+  isAccessible?: boolean;
   maxOccupancy: number;
   roomsAvailable: number;
   totalInventory?: number | null;
@@ -83,12 +84,6 @@ export const getRatePlansStub = (request: CloudbedsGetRatePlansRequest): Cloudbe
   const roomsRequested = request.rooms;
 
   const roomTypes = CLOUDBEDS_BASE_ROOM_TYPES.filter((roomType) => {
-    if (request.accessible_room && roomType.roomTypeId !== CLOUDBEDS_ARI_RULES.accessibleRoomTypeId) {
-      return false;
-    }
-    if (!request.accessible_room && roomType.roomTypeId === CLOUDBEDS_ARI_RULES.accessibleRoomTypeId) {
-      return false;
-    }
     if (request.needs_two_beds && roomType.roomTypeId !== CLOUDBEDS_ARI_RULES.twoBedsRoomTypeId) {
       return false;
     }
@@ -139,6 +134,7 @@ const buildRoomTypeForScenario = (
   const saverRatePlanName = isBusinessLateArrivalDemo
     ? "Saver (Non-Refundable)"
     : CLOUDBEDS_RATE_PLAN_SEEDS.payNow.ratePlanName;
+  const isInnAtMountShasta = request.propertyId === "inn_at_mount_shasta";
 
   const ratePlans: CloudbedsGetRatePlan[] = [
     {
@@ -171,6 +167,9 @@ const buildRoomTypeForScenario = (
       totalAfterTax: round2(nonRefundTotal + nonRefundTaxes),
     },
   ];
+  if (isInnAtMountShasta) {
+    ratePlans.splice(1, 1);
+  }
 
   applyScenarioRatePlanMutations(ratePlans, request.currency, scenario, checkIn, nights);
 
@@ -202,11 +201,17 @@ const buildRoomTypeForScenario = (
     roomTypeName: isBusinessLateArrivalDemo && roomType.roomTypeId === "RT_KING" ? "Standard King" : roomType.roomTypeName,
     roomTypeDescription: roomType.roomTypeDescription,
     features: roomType.features,
+    isAccessible: inferAccessibility(roomType.roomTypeName, roomType.roomTypeDescription),
     maxOccupancy: roomType.maxOccupancy,
     roomsAvailable: isCompressionWeekend ? Math.min(1, roomType.roomsAvailable) : roomType.roomsAvailable,
     totalInventory: roomType.roomsAvailable + 9,
     ratePlans,
   };
+};
+
+const inferAccessibility = (roomTypeName: string, roomTypeDescription?: string): boolean => {
+  const text = `${roomTypeName} ${roomTypeDescription ?? ""}`.toLowerCase();
+  return text.includes("accessible") || text.includes("mobility");
 };
 
 const applyScenarioRatePlanMutations = (

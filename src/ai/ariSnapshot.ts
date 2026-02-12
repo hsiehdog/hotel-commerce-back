@@ -12,6 +12,7 @@ export type RoomTypeSnapshot = {
   roomTypeName: string;
   roomTypeDescription?: string;
   features?: string[];
+  isAccessible?: boolean;
   maxOccupancy: number;
   roomsAvailable: number;
   totalInventory?: number | null;

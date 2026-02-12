@@ -42,11 +42,11 @@ export const buildCommerceOffers = async ({
       adults: normalized.totalAdults,
       rooms: normalized.rooms,
       children: normalized.totalChildren,
-      needs_two_beds: undefined,
-      accessible_room: undefined,
-      parking_needed: undefined,
-      pet_friendly: undefined,
-      budget_cap: undefined,
+      needs_two_beds: normalized.needsTwoBeds,
+      accessible_room: normalized.accessibleRoom,
+      parking_needed: normalized.parkingNeeded,
+      pet_friendly: normalized.petFriendly,
+      budget_cap: normalized.budgetCap,
       stubScenario: normalized.stubScenario,
       currency: normalized.currency,
       timezone: "UTC",
@@ -60,6 +60,7 @@ export const buildCommerceOffers = async ({
       requestCurrency: normalized.currency,
       partySize: normalized.totalAdults + normalized.totalChildren,
       nights: normalized.nights,
+      requireAccessibleRoom: normalized.accessibleRoom,
     });
 
     const scored = scoreCandidates({
@@ -92,6 +93,8 @@ export const buildCommerceOffers = async ({
         checkIn: normalized.checkIn,
         now: new Date(normalized.nowUtcIso),
         preferences: normalized.preferences,
+        petFriendly: normalized.petFriendly,
+        parkingNeeded: normalized.parkingNeeded,
         propertyContext,
       }),
     );
@@ -130,6 +133,11 @@ export const buildCommerceOffers = async ({
               })),
               currency: normalized.currency,
               strategyMode: normalized.strategyMode,
+              petFriendly: normalized.petFriendly,
+              accessibleRoom: normalized.accessibleRoom,
+              needsTwoBeds: normalized.needsTwoBeds,
+              budgetCap: normalized.budgetCap,
+              parkingNeeded: normalized.parkingNeeded,
             },
             profilePreAri: {
               tripType: normalized.profile.tripType,
@@ -153,6 +161,7 @@ export const buildCommerceOffers = async ({
               roomTypeName: candidate.roomTypeName,
               roomTypeDescription: candidate.roomTypeDescription,
               features: candidate.features,
+              isAccessible: candidate.isAccessible,
               ratePlanId: candidate.ratePlanId,
               roomsAvailable: candidate.roomsAvailable,
               riskContributors: getRiskContributors(candidate),
@@ -207,6 +216,8 @@ const toCommerceOffer = ({
   checkIn,
   now,
   preferences,
+  petFriendly,
+  parkingNeeded,
   propertyContext,
 }: {
   candidate: ScoredCandidate;
@@ -215,6 +226,8 @@ const toCommerceOffer = ({
   checkIn: string;
   now: Date;
   preferences?: { needs_space?: boolean; late_arrival?: boolean };
+  petFriendly?: boolean;
+  parkingNeeded?: boolean;
   propertyContext: PropertyContext | null;
 }): CommerceOffer => {
   const isSaver = candidate.archetype === "SAVER";
@@ -238,6 +251,8 @@ const toCommerceOffer = ({
     currency: candidate.currency,
     lateArrival: preferences?.late_arrival ?? false,
     needsSpace: preferences?.needs_space ?? false,
+    petFriendly: petFriendly ?? false,
+    parkingNeeded: parkingNeeded ?? false,
     stayPolicy: propertyContext?.stayPolicy,
   });
   const cancellationPolicy = selectCancellationPolicy({
@@ -304,6 +319,8 @@ const buildEnhancements = ({
   currency,
   lateArrival,
   needsSpace,
+  petFriendly,
+  parkingNeeded,
   stayPolicy,
 }: {
   recommended: boolean;
@@ -312,6 +329,8 @@ const buildEnhancements = ({
   currency: string;
   lateArrival: boolean;
   needsSpace: boolean;
+  petFriendly: boolean;
+  parkingNeeded: boolean;
   stayPolicy?: PropertyContext["stayPolicy"];
 }) => {
   if (!recommended) {
@@ -344,7 +363,7 @@ const buildEnhancements = ({
   }
 
   const petFeeAmount = centsToDollars(stayPolicy?.petFeePerNightCents);
-  if (petFeeAmount !== null) {
+  if (petFriendly && petFeeAmount !== null) {
     enhancements.push({
       id: "fee_pet_per_night",
       name: "Dog fee (if bringing a dog)",
@@ -358,6 +377,17 @@ const buildEnhancements = ({
       disclosure: stayPolicy?.petPolicyRequiresNoteAtBooking
         ? "Dog-friendly rooms are limited and must be noted at booking."
         : "Pet fee applies when bringing a dog.",
+    });
+  }
+
+  if (parkingNeeded) {
+    enhancements.push({
+      id: "addon_parking",
+      name: "Guest parking",
+      price: { type: "perNight", amount: 15, currency },
+      availability: "info",
+      whyShown: "preference_parking",
+      disclosure: "Parking request noted; exact availability/charges confirmed at booking.",
     });
   }
 

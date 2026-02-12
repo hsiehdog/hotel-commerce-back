@@ -14,7 +14,7 @@ type OfferResponsePayload = {
       type: "SAFE" | "SAVER";
       recommended: boolean;
       pricing?: { basis?: string; total?: number; totalAfterTax?: number };
-      enhancements?: Array<{ availability: string; disclosure?: string }>;
+      enhancements?: Array<{ id?: string; availability: string; disclosure?: string }>;
     }>;
     fallbackAction?: { type?: string } | null;
     debug?: {
@@ -125,13 +125,14 @@ describe("commerce decision engine coverage", () => {
     expect(next).not.toHaveBeenCalled();
 
     const payload = (res as unknown as { json: ReturnType<typeof vi.fn> }).json.mock.calls[0]?.[0] as OfferResponsePayload;
+    expect(payload.data.offers).toHaveLength(2);
     expect(payload.data.offers[0]?.type).toBe("SAFE");
-    expect(payload.data.debug?.selectionSummary?.secondaryFailureReason).toBe(
-      "SECONDARY_POOL_EMPTY_OPPOSITE_ARCHETYPE",
-    );
-    expect(payload.data.fallbackAction?.type).toBe("text_booking_link");
+    expect(payload.data.offers[1]?.type).toBe("SAFE");
+    expect(payload.data.debug?.selectionSummary?.secondaryFailureReason).toBeNull();
+    expect(payload.data.fallbackAction).toBeUndefined();
     expect(payload.data.debug?.reasonCodes).toContain("FILTER_CURRENCY_MISMATCH");
-    expect(payload.data.debug?.reasonCodes).toContain("FALLBACK_TEXT_LINK");
+    expect(payload.data.debug?.reasonCodes).toContain("SECONDARY_POOL_EMPTY_OPPOSITE_ARCHETYPE");
+    expect(payload.data.debug?.reasonCodes).toContain("SECONDARY_SAME_ARCHETYPE_FALLBACK");
   });
 
   it("before-tax-only scenario falls back to beforeTax basis group", async () => {
@@ -166,7 +167,7 @@ describe("commerce decision engine coverage", () => {
     expect(pricing?.totalAfterTax).toBeUndefined();
   });
 
-  it("restriction scenario filters candidates and uses fallback matrix", async () => {
+  it("restriction scenario can fall back to same-archetype secondary when opposite archetype is filtered out", async () => {
     const req = {
       body: {
         check_in: "2026-05-23",
@@ -184,12 +185,12 @@ describe("commerce decision engine coverage", () => {
     expect(next).not.toHaveBeenCalled();
 
     const payload = (res as unknown as { json: ReturnType<typeof vi.fn> }).json.mock.calls[0]?.[0] as OfferResponsePayload;
-    expect(payload.data.offers.length).toBeLessThanOrEqual(1);
+    expect(payload.data.offers).toHaveLength(2);
     expect(payload.data.debug?.reasonCodes).toContain("FILTER_RESTRICTIONS");
-    expect(payload.data.debug?.selectionSummary?.secondaryFailureReason).toBe(
-      "SECONDARY_POOL_EMPTY_OPPOSITE_ARCHETYPE",
-    );
-    expect(payload.data.fallbackAction?.type).toBe("text_booking_link");
+    expect(payload.data.debug?.reasonCodes).toContain("SECONDARY_POOL_EMPTY_OPPOSITE_ARCHETYPE");
+    expect(payload.data.debug?.reasonCodes).toContain("SECONDARY_SAME_ARCHETYPE_FALLBACK");
+    expect(payload.data.debug?.selectionSummary?.secondaryFailureReason).toBeNull();
+    expect(payload.data.fallbackAction).toBeUndefined();
   });
 
   it("bonus: occupancy normalization distributes guests for multi-room requests", async () => {
@@ -245,4 +246,58 @@ describe("commerce decision engine coverage", () => {
     expect(enhancement?.availability).toBe("request");
     expect(enhancement?.disclosure).toMatch(/subject to availability/i);
   });
+
+  it("filters to accessible room types when accessible_room is requested", async () => {
+    const req = {
+      body: {
+        property_id: "demo_property",
+        channel: "voice",
+        check_in: "2026-04-10",
+        check_out: "2026-04-12",
+        rooms: 1,
+        adults: 2,
+        accessible_room: true,
+        debug: true,
+      },
+    } as Parameters<typeof generateOffersForChannel>[0];
+    const res = createResponse();
+    const next = vi.fn();
+
+    await generateOffersForChannel(req, res, next as Parameters<typeof generateOffersForChannel>[2]);
+    expect(next).not.toHaveBeenCalled();
+
+    const payload = (res as unknown as { json: ReturnType<typeof vi.fn> }).json.mock.calls[0]?.[0] as OfferResponsePayload;
+    const roomNames = payload.data.debug?.topCandidates?.map((candidate) => candidate.roomTypeName ?? "") ?? [];
+    expect(roomNames.length).toBeGreaterThan(0);
+    expect(roomNames.every((name) => name.toLowerCase().includes("accessible"))).toBe(true);
+  });
+
+  it("filters to two-bed room types and adds parking enhancement when requested", async () => {
+    const req = {
+      body: {
+        property_id: "demo_property",
+        channel: "voice",
+        check_in: "2026-04-10",
+        check_out: "2026-04-12",
+        rooms: 1,
+        adults: 2,
+        needs_two_beds: true,
+        parking_needed: true,
+        debug: true,
+      },
+    } as Parameters<typeof generateOffersForChannel>[0];
+    const res = createResponse();
+    const next = vi.fn();
+
+    await generateOffersForChannel(req, res, next as Parameters<typeof generateOffersForChannel>[2]);
+    expect(next).not.toHaveBeenCalled();
+
+    const payload = (res as unknown as { json: ReturnType<typeof vi.fn> }).json.mock.calls[0]?.[0] as OfferResponsePayload;
+    const roomNames = payload.data.debug?.topCandidates?.map((candidate) => candidate.roomTypeName ?? "") ?? [];
+    expect(roomNames.length).toBeGreaterThan(0);
+    expect(roomNames.every((name) => name.toLowerCase().includes("queen"))).toBe(true);
+    const parkingEnhancement = payload.data.offers[0]?.enhancements?.find((item) => item.id === "addon_parking");
+    expect(parkingEnhancement).toBeTruthy();
+  });
+
 });

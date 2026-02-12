@@ -36,6 +36,11 @@ export type OfferGenerateRequestV1 = {
     needs_space?: boolean;
     late_arrival?: boolean;
   };
+  pet_friendly?: boolean;
+  accessible_room?: boolean;
+  needs_two_beds?: boolean;
+  budget_cap?: number;
+  parking_needed?: boolean;
   stub_scenario?: string;
   debug?: boolean;
 };
@@ -62,6 +67,11 @@ export type NormalizedOfferRequest = {
     needs_space?: boolean;
     late_arrival?: boolean;
   };
+  petFriendly?: boolean;
+  accessibleRoom?: boolean;
+  needsTwoBeds?: boolean;
+  budgetCap?: number;
+  parkingNeeded?: boolean;
   stubScenario?: string;
   configVersion: number;
   urgencyEnabled: boolean;
@@ -75,6 +85,7 @@ export type Candidate = {
   roomTypeName: string;
   roomTypeDescription?: string;
   features?: string[];
+  isAccessible?: boolean;
   roomsAvailable?: number;
   maxOccupancy?: number;
   roomTier: "standard" | "deluxe" | "suite";

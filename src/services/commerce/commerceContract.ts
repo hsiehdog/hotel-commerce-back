@@ -82,6 +82,11 @@ export type CommerceOfferResponse = {
       roomOccupancies: Array<{ adults: number; children: number }>;
       currency: string;
       strategyMode: "balanced" | "protect_rate" | "fill_rooms";
+      petFriendly?: boolean;
+      accessibleRoom?: boolean;
+      needsTwoBeds?: boolean;
+      budgetCap?: number;
+      parkingNeeded?: boolean;
     };
     profilePreAri: {
       tripType: string;
@@ -109,6 +114,7 @@ export type CommerceOfferResponse = {
       roomTypeName: string;
       roomTypeDescription?: string;
       features?: string[];
+      isAccessible?: boolean;
       ratePlanId: string;
       roomsAvailable?: number;
       riskContributors: Array<"NON_REFUNDABLE" | "PAY_NOW" | "LOW_INVENTORY">;

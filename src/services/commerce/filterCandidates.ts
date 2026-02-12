@@ -11,15 +11,21 @@ export const filterCandidates = ({
   requestCurrency,
   partySize,
   nights,
+  requireAccessibleRoom,
 }: {
   candidates: Candidate[];
   requestCurrency: string;
   partySize: number;
   nights: number;
+  requireAccessibleRoom?: boolean;
 }): FilterResult => {
   const reasonCodes = new Set<string>();
 
   const hardFiltered = candidates.filter((candidate) => {
+    if (requireAccessibleRoom && !candidate.isAccessible) {
+      reasonCodes.add("FILTER_ACCESSIBILITY");
+      return false;
+    }
     if (typeof candidate.maxOccupancy === "number" && partySize > candidate.maxOccupancy) {
       reasonCodes.add("FILTER_OCCUPANCY");
       return false;
