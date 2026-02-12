@@ -45,7 +45,6 @@ export const buildCommerceOffers = async ({
       accessible_room: normalized.accessibleRoom,
       parking_needed: normalized.parkingNeeded,
       pet_friendly: normalized.petFriendly,
-      budget_cap: normalized.budgetCap,
       stubScenario: normalized.stubScenario,
       currency: normalized.currency,
       timezone: "UTC",
@@ -128,7 +127,6 @@ export const buildCommerceOffers = async ({
               petFriendly: normalized.petFriendly,
               accessibleRoom: normalized.accessibleRoom,
               needsTwoBeds: normalized.needsTwoBeds,
-              budgetCap: normalized.budgetCap,
               parkingNeeded: normalized.parkingNeeded,
             },
             profilePreAri: {

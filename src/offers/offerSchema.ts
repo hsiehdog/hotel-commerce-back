@@ -37,9 +37,6 @@ const parseBoolean = (value: unknown): boolean | undefined =>
 const parseString = (value: unknown): string | undefined =>
   typeof value === "string" ? value : undefined;
 
-const parseNumber = (value: unknown): number | undefined =>
-  typeof value === "number" && Number.isFinite(value) ? value : undefined;
-
 export type OfferSlots = {
   check_in: string;
   check_out: string;
@@ -50,7 +47,6 @@ export type OfferSlots = {
   pet_friendly: boolean;
   accessible_room: boolean;
   needs_two_beds: boolean;
-  budget_cap: number;
   parking_needed: boolean;
   stub_scenario: string;
 };
@@ -67,7 +63,6 @@ export const offerSlotsInputSchema = z.object({
   pet_friendly: z.boolean().optional(),
   accessible_room: z.boolean().optional(),
   needs_two_beds: z.boolean().optional(),
-  budget_cap: z.number().positive().optional(),
   parking_needed: z.boolean().optional(),
   stub_scenario: z.string().optional(),
 });
@@ -82,7 +77,6 @@ export const offerIntentPatchSchema = z.object({
   pet_friendly: z.boolean().nullable().optional(),
   accessible_room: z.boolean().nullable().optional(),
   needs_two_beds: z.boolean().nullable().optional(),
-  budget_cap: z.number().positive().nullable().optional(),
   parking_needed: z.boolean().nullable().optional(),
   stub_scenario: z.string().nullable().optional(),
   language: z.string().nullable().optional(),
@@ -109,7 +103,6 @@ export const coerceOfferSlotsInput = (raw: unknown): OfferSlotsInput => {
     pet_friendly: parseBoolean(args.pet_friendly),
     accessible_room: parseBoolean(args.accessible_room),
     needs_two_beds: parseBoolean(args.needs_two_beds),
-    budget_cap: parseNumber(args.budget_cap),
     parking_needed: parseBoolean(args.parking_needed),
     stub_scenario: parseString(args.stub_scenario),
   };

@@ -67,7 +67,6 @@ export const generateOffers = async ({
       pet_friendly: result.slots.pet_friendly ?? undefined,
       accessible_room: result.slots.accessible_room ?? undefined,
       needs_two_beds: result.slots.needs_two_beds ?? undefined,
-      budget_cap: result.slots.budget_cap ?? undefined,
       parking_needed: result.slots.parking_needed ?? undefined,
       currency: requestCurrency,
       stub_scenario: result.slots.stub_scenario ?? undefined,

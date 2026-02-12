@@ -34,7 +34,6 @@ export type OfferGenerateRequestV1 = {
   pet_friendly?: boolean;
   accessible_room?: boolean;
   needs_two_beds?: boolean;
-  budget_cap?: number;
   parking_needed?: boolean;
   stub_scenario?: string;
   debug?: boolean;
@@ -60,7 +59,6 @@ export type NormalizedOfferRequest = {
   petFriendly?: boolean;
   accessibleRoom?: boolean;
   needsTwoBeds?: boolean;
-  budgetCap?: number;
   parkingNeeded?: boolean;
   stubScenario?: string;
   configVersion: number;

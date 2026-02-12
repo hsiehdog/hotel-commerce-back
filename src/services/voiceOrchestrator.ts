@@ -45,7 +45,6 @@ export const createVoiceOrchestrator = ({
             pet_friendly: { type: "boolean", description: "Whether a pet-friendly room is needed." },
             accessible_room: { type: "boolean", description: "Whether an accessible room is needed." },
             needs_two_beds: { type: "boolean", description: "Whether two beds are required." },
-            budget_cap: { type: "number", description: "Maximum budget per night." },
             parking_needed: { type: "boolean", description: "Whether parking is needed." },
           },
           required: [],

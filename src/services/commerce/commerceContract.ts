@@ -94,7 +94,6 @@ export type CommerceOfferResponse = {
       petFriendly?: boolean;
       accessibleRoom?: boolean;
       needsTwoBeds?: boolean;
-      budgetCap?: number;
       parkingNeeded?: boolean;
     };
     profilePreAri: {

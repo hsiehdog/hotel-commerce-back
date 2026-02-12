@@ -169,7 +169,6 @@ export const CLOUDBEDS_ARI_ASSUMPTIONS = {
   childSurcharge: 10,
   petFriendlySurcharge: 25,
   parkingSurcharge: 15,
-  budgetCapMultiplier: 0.95,
   minNightlyRate: 80,
   freeCancellationWindowDays: 2,
   minLengthOfStay: 1,

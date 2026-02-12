@@ -27,7 +27,6 @@ export type CloudbedsGetRatePlansRequest = {
   accessible_room?: boolean;
   needs_two_beds?: boolean;
   parking_needed?: boolean;
-  budget_cap?: number;
   currency: string;
   scenario?: string;
 };
@@ -301,16 +300,6 @@ const adjustBaseRate = (
   if (children > 0) {
     rate += children * CLOUDBEDS_ARI_ASSUMPTIONS.childSurcharge;
   }
-  if (typeof request.budget_cap === "number" && request.budget_cap > 0) {
-    rate = Math.min(
-      rate,
-      Math.max(
-        CLOUDBEDS_ARI_ASSUMPTIONS.minNightlyRate,
-        Math.floor(request.budget_cap * CLOUDBEDS_ARI_ASSUMPTIONS.budgetCapMultiplier),
-      ),
-    );
-  }
-
   return Math.max(CLOUDBEDS_ARI_ASSUMPTIONS.minNightlyRate, round2(rate));
 };
 

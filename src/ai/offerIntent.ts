@@ -18,7 +18,6 @@ export const createEmptyOfferIntent = (timezone = "America/Los_Angeles"): OfferI
   pet_friendly: null,
   accessible_room: null,
   needs_two_beds: null,
-  budget_cap: null,
   parking_needed: null,
   stub_scenario: null,
   language: null,

@@ -191,7 +191,6 @@ const mergeIntent = (current: OfferIntent, incoming: GetOffersToolArgs): OfferIn
   pet_friendly: typeof incoming.pet_friendly === "boolean" ? incoming.pet_friendly : current.pet_friendly,
   accessible_room: typeof incoming.accessible_room === "boolean" ? incoming.accessible_room : current.accessible_room,
   needs_two_beds: typeof incoming.needs_two_beds === "boolean" ? incoming.needs_two_beds : current.needs_two_beds,
-  budget_cap: typeof incoming.budget_cap === "number" ? incoming.budget_cap : current.budget_cap,
   parking_needed: typeof incoming.parking_needed === "boolean" ? incoming.parking_needed : current.parking_needed,
   stub_scenario: typeof incoming.stub_scenario === "string" ? incoming.stub_scenario : current.stub_scenario,
 });
@@ -216,7 +215,6 @@ export const buildSlotSpeech = (slots: OfferIntent, offers: OfferOption[]): stri
     `pet_friendly: ${slots.pet_friendly ?? "null"}`,
     `accessible_room: ${slots.accessible_room ?? "null"}`,
     `needs_two_beds: ${slots.needs_two_beds ?? "null"}`,
-    `budget_cap: ${slots.budget_cap ?? "null"}`,
     `parking_needed: ${slots.parking_needed ?? "null"}`,
     offers.length > 1 ? "Here are two options:" : "Here is the best available option:",
   ];
@@ -297,7 +295,6 @@ const buildConfirmationPrompt = (slots: OfferIntent): string => {
     `pet-friendly ${formatOptionalFlag(slots.pet_friendly)},`,
     `accessible room ${formatOptionalFlag(slots.accessible_room)},`,
     `two beds ${formatOptionalFlag(slots.needs_two_beds)},`,
-    `budget cap ${typeof slots.budget_cap === "number" ? formatMoney(slots.budget_cap) : "none"},`,
     `parking needed ${formatOptionalFlag(slots.parking_needed)}.`,
     "Is that all correct?",
   ];

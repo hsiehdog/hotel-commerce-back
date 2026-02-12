@@ -120,7 +120,7 @@ SUITE_ROOM_TYPE_IDS=RT_PREMIER_SUITE,RT_FAMILY_SUITE,RT_BUNK_SUITE pnpm stub:pro
 
 - `POST /offers/generate` (no auth required)
   - Request shape:
-    - Canonical top-level: `{ property_id, channel, check_in, check_out, adults, rooms, children?, child_ages?, roomOccupancies?, currency?, pet_friendly?, accessible_room?, needs_two_beds?, budget_cap?, parking_needed?, stub_scenario?, debug? }`
+    - Canonical top-level: `{ property_id, channel, check_in, check_out, adults, rooms, children?, child_ages?, roomOccupancies?, currency?, pet_friendly?, accessible_room?, needs_two_beds?, parking_needed?, stub_scenario?, debug? }`
   - Request attributes and allowed values:
     - `property_id`: any string (example: `"inn_at_mount_shasta"`)
     - `channel`: `"voice" | "web" | "agent"` (default: `"voice"`)
@@ -139,7 +139,6 @@ SUITE_ROOM_TYPE_IDS=RT_PREMIER_SUITE,RT_FAMILY_SUITE,RT_BUNK_SUITE pnpm stub:pro
     - `pet_friendly`: boolean
     - `accessible_room`: boolean
     - `needs_two_beds`: boolean
-    - `budget_cap`: positive number (`> 0`)
     - `parking_needed`: boolean
     - `stub_scenario`: `"default" | "saver_primary_accessible" | "currency_mismatch" | "before_tax_only" | "invalid_pricing" | "constraint_min_los"`
       - unknown scenario values fall back to `"default"`
@@ -218,7 +217,7 @@ The commerce engine runs this deterministic pipeline:
 - restrictions (`cta`, `ctd`, `minLos`, `maxLos`)
 - currency exact match (no FX)
 - pricing basis validity
-- request constraints passed through to ARI source (`accessible_room`, `needs_two_beds`, `pet_friendly`, `parking_needed`, `budget_cap`)
+- request constraints passed through to ARI source (`accessible_room`, `needs_two_beds`, `pet_friendly`, `parking_needed`)
 
 4. Basis-group scoring
 - Prefer `afterTax` candidate group; fallback to `beforeTaxPlusTaxes`, then `beforeTax`.

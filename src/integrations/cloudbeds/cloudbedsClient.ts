@@ -15,7 +15,6 @@ export type CloudbedsAriRequest = {
   accessible_room?: boolean;
   needs_two_beds?: boolean;
   parking_needed?: boolean;
-  budget_cap?: number;
   stubScenario?: string;
   currency: string;
   timezone: string;
@@ -83,7 +82,6 @@ export const getAriRaw = (request: CloudbedsAriRequest): CloudbedsAriRaw => {
     accessible_room: request.accessible_room,
     needs_two_beds: request.needs_two_beds,
     parking_needed: request.parking_needed,
-    budget_cap: request.budget_cap,
     currency: request.currency,
     scenario: request.stubScenario,
   });
