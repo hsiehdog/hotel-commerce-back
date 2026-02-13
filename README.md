@@ -222,7 +222,9 @@ The commerce engine runs this deterministic pipeline:
 4. Basis-group scoring
 - Prefer `afterTax` candidate group; fallback to `beforeTaxPlusTaxes`, then `beforeTax`.
 - Selected basis group = candidates that passed hard filters and share the chosen basis.
-- Score candidates deterministically (`value`, `conversion`, `experience`, `marginProxy`, `risk`) with profile+strategy weights.
+- Score candidates deterministically (`value`, `conversion`, `experience`, `marginProxy`, `risk`) with dynamic profile-based weights:
+  - posture base (`urgent`, `certainty`, `price`, `experience`)
+  - trip-type deltas (`family`, `business`, `couple`, `solo`, `group_lite`)
 - Component scoring rules:
   - Each component is normalized/clamped to `0..100`.
   - Normalization is computed within the selected basis group for the request.
