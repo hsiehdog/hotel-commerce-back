@@ -13,6 +13,7 @@ type OfferResponsePayload = {
     offers: Array<{
       type: "SAFE" | "SAVER";
       recommended: boolean;
+      roomsAvailable?: number;
       pricing?: {
         basis?: string;
         total?: number;
@@ -34,8 +35,16 @@ type OfferResponsePayload = {
     }>;
     fallbackAction?: { type?: string } | null;
     debug?: {
-      profileFinal?: { inventoryState?: string };
       reasonCodes?: string[];
+      scoring?: {
+        weights?: {
+          value?: number;
+          conversion?: number;
+          experience?: number;
+          margin?: number;
+          risk?: number;
+        };
+      };
       selectionSummary?: {
         saverPrimaryExceptionApplied?: boolean;
         secondaryFailureReason?: string | null;
@@ -82,7 +91,14 @@ describe("commerce decision engine coverage", () => {
     expect(payload.data.fallbackAction).toBeUndefined();
     expect(payload.data.debug?.reasonCodes).toContain("SELECT_PRIMARY_SAFE");
     expect(payload.data.debug?.reasonCodes).toContain("SELECT_SECONDARY_SAVER");
-    expect(payload.data.debug?.profileFinal?.inventoryState).toBe("normal");
+    expect(payload.data.debug?.scoring?.weights).toEqual({
+      value: 0.3,
+      conversion: 0.35,
+      experience: 0.1,
+      margin: 0.1,
+      risk: 0.15,
+    });
+    expect(payload.data.offers[0]?.roomsAvailable).toBeTypeOf("number");
     expect(payload.data.debug?.topCandidates?.[0]?.roomTypeName).toBeTruthy();
     expect(payload.data.debug?.topCandidates?.[0]?.roomTypeDescription).toBeTruthy();
     expect((payload.data.debug?.topCandidates?.[0]?.features?.length ?? 0) > 0).toBe(true);

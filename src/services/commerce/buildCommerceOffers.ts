@@ -4,12 +4,12 @@ import { getPropertyContext } from "../propertyContext/getPropertyContext";
 import { renderCancellationSummary } from "../propertyContext/renderCancellationSummary";
 import { selectCancellationPolicy } from "../propertyContext/selectCancellationPolicy";
 import type { PropertyContext } from "../propertyContext/types";
-import { finalizeCommerceProfileInventoryState } from "./buildCommerceProfile";
 import type { CommerceOffer, CommerceOfferResponse } from "./commerceContract";
 import { filterCandidates } from "./filterCandidates";
 import { generateCandidates } from "./generateCandidates";
 import { normalizeOfferRequest } from "./normalizeOfferRequest";
 import { scoreCandidates } from "./scoring/scoreCandidates";
+import { getScoreWeights } from "./scoring/weights";
 import { selectArchetypeOffers, selectFallbackAction, type FallbackActionCode } from "./selectArchetypeOffers";
 import type { OfferGenerateRequestV1, ScoredCandidate } from "./types";
 
@@ -66,6 +66,11 @@ export const buildCommerceOffers = async ({
       posture: normalized.profile.decisionPosture,
       strategyMode: normalized.strategyMode,
     });
+    const effectiveWeights = getScoreWeights({
+      tripType: normalized.profile.tripType,
+      posture: normalized.profile.decisionPosture,
+      strategy: normalized.strategyMode,
+    });
 
     const selection = selectArchetypeOffers({
       scoredCandidates: scored,
@@ -76,17 +81,13 @@ export const buildCommerceOffers = async ({
     const secondary = selection.secondary;
     const selected = [primary, secondary].filter((candidate): candidate is ScoredCandidate => Boolean(candidate));
 
-    const finalProfile = finalizeCommerceProfileInventoryState({
-      profile: normalized.profile,
-      roomsAvailable: primary?.roomsAvailable,
-    });
     const propertyContext = await getPropertyContext(normalized.propertyId);
 
     const offers = selected.map((candidate, index) =>
       toCommerceOffer({
         candidate,
         recommended: index === 0,
-        profile: finalProfile,
+        profile: normalized.profile,
         checkIn: normalized.checkIn,
         now: new Date(normalized.nowUtcIso),
         petFriendly: normalized.petFriendly,
@@ -135,8 +136,8 @@ export const buildCommerceOffers = async ({
               leadTimeDays: normalized.profile.leadTimeDays,
               nights: normalized.profile.nights,
             },
-            profileFinal: {
-              inventoryState: finalProfile.inventoryState,
+            scoring: {
+              weights: effectiveWeights,
             },
             selectionSummary: {
               primaryArchetype: primary?.archetype ?? null,
@@ -175,7 +176,7 @@ export const buildCommerceOffers = async ({
         fallbackAction: fallbackCode ? mapFallback(fallbackCode, normalized.checkIn, normalized.checkOut) : undefined,
         presentationHints: {
           emphasis: buildEmphasis({
-            profile: finalProfile,
+            profile: normalized.profile,
             saverPrimary: offers[0]?.type === "SAVER",
             secondarySavingsQualified: selection.secondarySavingsQualified,
           }),
@@ -241,6 +242,7 @@ const toCommerceOffer = ({
     offerId: normalizeId(candidate.ratePlanId),
     type: isSaver ? "SAVER" : "SAFE",
     recommended,
+    roomsAvailable: candidate.roomsAvailable,
     roomType: {
       id: normalizeId(candidate.roomTypeId),
       name: candidate.roomTypeName,

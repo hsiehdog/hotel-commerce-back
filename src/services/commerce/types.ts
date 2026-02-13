@@ -1,12 +1,10 @@
 export type StrategyMode = "balanced";
 export type DecisionPosture = "certainty" | "price" | "experience" | "urgent";
 export type TripType = "family" | "business" | "couple" | "solo" | "group_lite";
-export type InventoryState = "low" | "normal" | "unknown";
 
 export type CommerceProfile = {
   tripType: TripType;
   decisionPosture: DecisionPosture;
-  inventoryState: InventoryState;
   leadTimeDays: number;
   nights: number;
 };

@@ -1,4 +1,4 @@
-import type { CommerceProfile, DecisionPosture, InventoryState, TripType } from "./types";
+import type { CommerceProfile, DecisionPosture, TripType } from "./types";
 import { dayOfWeekFromIsoDate } from "../../utils/dateTime";
 
 type PreProfileInput = {
@@ -11,33 +11,14 @@ type PreProfileInput = {
   channel: "voice" | "web" | "agent";
 };
 
-type InventorySignalInput = {
-  profile: CommerceProfile;
-  roomsAvailable?: number;
-};
-
 export const buildCommerceProfilePreAri = (input: PreProfileInput): CommerceProfile => {
   const tripType = resolveTripType(input);
   const decisionPosture = resolveDecisionPosture({ ...input, tripType });
   return {
     tripType,
     decisionPosture,
-    inventoryState: "unknown",
     leadTimeDays: input.leadTimeDays,
     nights: input.nights,
-  };
-};
-
-export const finalizeCommerceProfileInventoryState = ({
-  profile,
-  roomsAvailable,
-}: InventorySignalInput): CommerceProfile => {
-  const inventoryState: InventoryState =
-    typeof roomsAvailable !== "number" ? "unknown" : roomsAvailable <= 2 ? "low" : "normal";
-
-  return {
-    ...profile,
-    inventoryState,
   };
 };
 

@@ -289,11 +289,6 @@ The commerce engine runs this deterministic pipeline:
   - only when low inventory (`roomsAvailable <= 2`) and SAFE-vs-SAVER delta is at least 30%.
   - delta formula: `(safeTotal - saverTotal) / safeTotal >= 0.30`
   - exception is disabled when inventory availability is missing.
-- Inventory state finalization:
-  - pre-selection low-inventory signal for saver-primary uses best SAFE/SAVER candidate availability.
-  - `low` when selected primary `roomsAvailable <= 2`
-  - `normal` when selected primary `roomsAvailable > 2`
-  - `unknown` when selected primary availability is missing
 - Price spread guardrail:
   - `balanced`: `<=25%` and `<= $300`
 - Enhancements are attached post-selection and never alter base ranking.
@@ -325,6 +320,7 @@ The commerce engine runs this deterministic pipeline:
 - `currency`
 - `priceBasisUsed`
 - `offers` (0-2)
+  - `offers[].roomsAvailable` exposes candidate availability used for selection/risk context
   - `offers[].roomType` may include `description` and `features` from room metadata
   - `offers[].pricing` is basis-aware:
     - `afterTax` / `beforeTaxPlusTaxes`: `{ basis, total, totalAfterTax }`
@@ -341,7 +337,7 @@ The commerce engine runs this deterministic pipeline:
 When `debug: true` is passed, response also includes:
 - `debug.resolvedRequest`
 - `debug.profilePreAri`
-- `debug.profileFinal`
+- `debug.scoring.weights`
 - `debug.selectionSummary`
 - `debug.reasonCodes`
 - `debug.topCandidates` (capped list; includes `roomsAvailable`, `riskContributors`, scoring components)

@@ -15,6 +15,7 @@ export type CommerceOffer = {
   offerId: string;
   type: "SAFE" | "SAVER";
   recommended: boolean;
+  roomsAvailable?: number;
   roomType: { id: string; name: string; description?: string; features?: string[] };
   ratePlan: { id: string; name: string };
   policy: {
@@ -102,8 +103,14 @@ export type CommerceOfferResponse = {
       leadTimeDays: number;
       nights: number;
     };
-    profileFinal: {
-      inventoryState: string;
+    scoring: {
+      weights: {
+        value: number;
+        conversion: number;
+        experience: number;
+        margin: number;
+        risk: number;
+      };
     };
     selectionSummary: {
       primaryArchetype: "SAFE" | "SAVER" | "OTHER" | null;
