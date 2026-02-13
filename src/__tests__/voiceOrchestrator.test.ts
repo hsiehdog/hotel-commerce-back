@@ -166,4 +166,21 @@ describe("voice orchestrator tool gating", () => {
     expect(controller.instructions).toContain("Do not state a different current day/date");
     expect(controller.instructions).toContain("Never resolve relative dates yourself");
   });
+
+  it("uses server time at call start for trusted date context", () => {
+    const { factory, controller } = createFakeRealtimeClientFactory();
+    const orchestrator = createVoiceOrchestrator({
+      onOutboundAudio: () => {},
+      realtimeFactory: factory,
+    });
+    const transport = createFakeTwilioTransport(orchestrator);
+
+    vi.setSystemTime(new Date("2026-02-15T20:00:00Z"));
+    transport.sendTwilioMessage({
+      event: "start",
+      start: { callSid: "CA999", streamSid: "MS999", from: "+15551234567" },
+    });
+
+    expect(controller.instructions).toContain("Sunday, February 15, 2026");
+  });
 });
