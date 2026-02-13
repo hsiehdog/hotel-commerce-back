@@ -9,13 +9,13 @@ export type FilterResult = {
 export const filterCandidates = ({
   candidates,
   requestCurrency,
-  partySize,
+  requiredRoomOccupancy,
   nights,
   requireAccessibleRoom,
 }: {
   candidates: Candidate[];
   requestCurrency: string;
-  partySize: number;
+  requiredRoomOccupancy: number;
   nights: number;
   requireAccessibleRoom?: boolean;
 }): FilterResult => {
@@ -26,7 +26,7 @@ export const filterCandidates = ({
       reasonCodes.add("FILTER_ACCESSIBILITY");
       return false;
     }
-    if (typeof candidate.maxOccupancy === "number" && partySize > candidate.maxOccupancy) {
+    if (typeof candidate.maxOccupancy === "number" && requiredRoomOccupancy > candidate.maxOccupancy) {
       reasonCodes.add("FILTER_OCCUPANCY");
       return false;
     }

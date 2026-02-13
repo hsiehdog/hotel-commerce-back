@@ -22,6 +22,7 @@ export type CloudbedsGetRatePlansRequest = {
   nights?: number;
   adults: number;
   rooms: number;
+  max_room_occupancy_required?: number;
   children?: number;
   pet_friendly?: boolean;
   accessible_room?: boolean;
@@ -83,7 +84,7 @@ export const getRatePlansStub = (request: CloudbedsGetRatePlansRequest): Cloudbe
   const nights = resolveNights(request);
   const endDate = request.checkOut ?? addDays(request.checkIn, nights);
   const children = request.children ?? 0;
-  const occupancy = request.adults + children;
+  const occupancy = request.max_room_occupancy_required ?? request.adults + children;
   const roomsRequested = request.rooms;
 
   const roomTypes = CLOUDBEDS_BASE_ROOM_TYPES.filter((roomType) => {

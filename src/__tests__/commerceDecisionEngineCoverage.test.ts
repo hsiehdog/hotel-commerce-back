@@ -253,6 +253,37 @@ describe("commerce decision engine coverage", () => {
     expect(roomOccupancies.every((room) => room.adults + room.children > 0)).toBe(true);
   });
 
+  it("uses per-room occupancy requirements for multi-room availability", async () => {
+    const req = {
+      body: {
+        property_id: "demo_property",
+        channel: "agent",
+        check_in: "2026-07-02",
+        check_out: "2026-07-05",
+        rooms: 2,
+        adults: 4,
+        children: 2,
+        child_ages: [5, 9],
+        roomOccupancies: [
+          { adults: 2, children: 1 },
+          { adults: 2, children: 1 },
+        ],
+        pet_friendly: true,
+        parking_needed: true,
+        debug: true,
+      },
+    } as Parameters<typeof generateOffersForChannel>[0];
+    const res = createResponse();
+    const next = vi.fn();
+
+    await generateOffersForChannel(req, res, next as Parameters<typeof generateOffersForChannel>[2]);
+    expect(next).not.toHaveBeenCalled();
+
+    const payload = (res as unknown as { json: ReturnType<typeof vi.fn> }).json.mock.calls[0]?.[0] as OfferResponsePayload;
+    expect(payload.data.offers.length).toBeGreaterThan(0);
+    expect(payload.data.debug?.reasonCodes).not.toContain("FALLBACK_WAITLIST");
+  });
+
   it("bonus: enhancement attachment includes contextual enhancement", async () => {
     const req = {
       body: {

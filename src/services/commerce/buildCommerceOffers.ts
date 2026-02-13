@@ -32,6 +32,10 @@ export const buildCommerceOffers = async ({
 }): Promise<BuildCommerceOffersResult> => {
   try {
     const normalized = await normalizeOfferRequest(request);
+    const requiredRoomOccupancy = Math.max(
+      1,
+      ...normalized.roomOccupancies.map((room) => room.adults + room.children),
+    );
 
     const ariRaw = await getCloudbedsAriRaw({
       propertyId: normalized.propertyId,
@@ -40,6 +44,7 @@ export const buildCommerceOffers = async ({
       nights: normalized.nights,
       adults: normalized.totalAdults,
       rooms: normalized.rooms,
+      maxRoomOccupancyRequired: requiredRoomOccupancy,
       children: normalized.totalChildren,
       needs_two_beds: normalized.needsTwoBeds,
       accessible_room: normalized.accessibleRoom,
@@ -55,7 +60,7 @@ export const buildCommerceOffers = async ({
     const filterResult = filterCandidates({
       candidates: rawCandidates,
       requestCurrency: normalized.currency,
-      partySize: normalized.totalAdults + normalized.totalChildren,
+      requiredRoomOccupancy,
       nights: normalized.nights,
       requireAccessibleRoom: normalized.accessibleRoom,
     });

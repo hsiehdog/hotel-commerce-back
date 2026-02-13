@@ -10,6 +10,7 @@ export type CloudbedsAriRequest = {
   nights?: number;
   adults: number;
   rooms: number;
+  maxRoomOccupancyRequired?: number;
   children?: number;
   pet_friendly?: boolean;
   accessible_room?: boolean;
@@ -77,6 +78,7 @@ export const getAriRaw = (request: CloudbedsAriRequest): CloudbedsAriRaw => {
     nights: request.nights,
     adults: request.adults,
     rooms: request.rooms,
+    max_room_occupancy_required: request.maxRoomOccupancyRequired,
     children: request.children,
     pet_friendly: request.pet_friendly,
     accessible_room: request.accessible_room,

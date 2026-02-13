@@ -15,6 +15,7 @@ const buildCacheKey = (request: CloudbedsAriRequest): string => {
     nights: request.nights ?? null,
     adults: request.adults,
     rooms: request.rooms,
+    maxRoomOccupancyRequired: request.maxRoomOccupancyRequired ?? null,
     children: request.children ?? 0,
     pet_friendly: request.pet_friendly ?? null,
     accessible_room: request.accessible_room ?? null,
