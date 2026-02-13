@@ -27,6 +27,13 @@ type OfferResponsePayload = {
             parkingFeePerNight?: number | null;
             petFeeTotal?: number | null;
             parkingFeeTotal?: number | null;
+            breakfastFeePerPersonPerNight?: number | null;
+            breakfastFeeTotal?: number | null;
+            earlyCheckInFeePerStay?: number | null;
+            earlyCheckInFeeTotal?: number | null;
+            lateCheckOutFeePerStay?: number | null;
+            lateCheckOutFeeTotal?: number | null;
+            addOnFeesTotal?: number | null;
             totalIncludedFees?: number | null;
           };
         };
@@ -391,6 +398,14 @@ describe("commerce decision engine coverage", () => {
     expect(enhancementIds).toContain("addon_breakfast");
     expect(enhancementIds).toContain("addon_early_check_in");
     expect(enhancementIds).toContain("addon_late_check_out");
+    const includedFees = payload.data.offers[0]?.pricing?.breakdown?.includedFees;
+    expect(includedFees?.breakfastFeePerPersonPerNight).toBe(18);
+    expect(includedFees?.breakfastFeeTotal).toBe(72);
+    expect(includedFees?.earlyCheckInFeePerStay).toBe(35);
+    expect(includedFees?.earlyCheckInFeeTotal).toBe(35);
+    expect(includedFees?.lateCheckOutFeePerStay).toBe(35);
+    expect(includedFees?.lateCheckOutFeeTotal).toBe(35);
+    expect(includedFees?.addOnFeesTotal).toBe(142);
   });
 
   it("does not add breakfast enhancement when breakfast package is explicitly false", async () => {

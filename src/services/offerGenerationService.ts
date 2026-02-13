@@ -151,10 +151,20 @@ const toToolOffer = ({
           basis: "afterTax" | "beforeTaxPlusTaxes";
           total: number;
           totalAfterTax: number;
+          breakdown?: {
+            includedFees?: {
+              addOnFeesTotal?: number | null;
+            };
+          };
         }
       | {
           basis: "beforeTax";
           total: number;
+          breakdown?: {
+            includedFees?: {
+              addOnFeesTotal?: number | null;
+            };
+          };
         };
   };
   currency: string;
@@ -166,6 +176,7 @@ const toToolOffer = ({
   isPrimary: boolean;
 }): OfferOption => {
   const total = "totalAfterTax" in offer.pricing ? offer.pricing.totalAfterTax : offer.pricing.total;
+  const addOnsTotal = offer.pricing.breakdown?.includedFees?.addOnFeesTotal ?? 0;
   const subtotal = offer.pricing.total;
   const taxesAndFees = Math.max(0, round2(total - subtotal));
   const perNight = round2(total / Math.max(1, rooms * nights));
@@ -185,6 +196,8 @@ const toToolOffer = ({
       subtotal,
       taxes_and_fees: taxesAndFees,
       total,
+      add_ons_total: addOnsTotal > 0 ? addOnsTotal : undefined,
+      total_with_add_ons: addOnsTotal > 0 ? total : undefined,
     },
     commerce_metadata: {
       priceBasisUsed,

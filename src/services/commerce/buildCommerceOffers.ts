@@ -95,6 +95,8 @@ export const buildCommerceOffers = async ({
         profile: normalized.profile,
         checkIn: normalized.checkIn,
         now: new Date(normalized.nowUtcIso),
+        totalGuests: normalized.totalAdults + normalized.totalChildren,
+        rooms: normalized.rooms,
         petFriendly: normalized.petFriendly,
         parkingNeeded: normalized.parkingNeeded,
         breakfastPackage: normalized.breakfastPackage,
@@ -213,6 +215,8 @@ const toCommerceOffer = ({
   profile,
   checkIn,
   now,
+  totalGuests,
+  rooms,
   petFriendly,
   parkingNeeded,
   breakfastPackage,
@@ -225,6 +229,8 @@ const toCommerceOffer = ({
   profile: { tripType: string; decisionPosture: string };
   checkIn: string;
   now: Date;
+  totalGuests: number;
+  rooms: number;
   petFriendly?: boolean;
   parkingNeeded?: boolean;
   breakfastPackage?: boolean;
@@ -251,11 +257,23 @@ const toCommerceOffer = ({
     roomTypeId: candidate.roomTypeId,
   });
   const disclosures = buildDisclosures(propertyContext);
+  const nights = Math.max(1, candidate.price.nightly?.length ?? 1);
+  const addOnFees = computeSelectedAddOnFees({
+    nights,
+    rooms,
+    totalGuests,
+    breakfastPackage: breakfastPackage ?? false,
+    earlyCheckIn: earlyCheckIn ?? false,
+    lateCheckOut: lateCheckOut ?? false,
+  });
+  const totalPrice = round2(candidate.price.amount + addOnFees.total);
   const pricingBreakdown = buildPricingBreakdown({
-    nights: candidate.price.nightly?.length ?? 1,
+    nights,
     price: candidate.price,
+    totalPrice,
     petFriendly: petFriendly ?? false,
     parkingNeeded: parkingNeeded ?? false,
+    addOnFees,
   });
 
   return {
@@ -288,13 +306,13 @@ const toCommerceOffer = ({
       candidate.price.basis === "beforeTax"
         ? {
             basis: "beforeTax",
-            total: round2(candidate.price.amount),
+            total: totalPrice,
             breakdown: pricingBreakdown,
           }
         : {
             basis: candidate.price.basis,
-            total: round2(candidate.price.amount),
-            totalAfterTax: round2(candidate.price.amount),
+            total: totalPrice,
+            totalAfterTax: totalPrice,
             breakdown: pricingBreakdown,
     },
     enhancements: enhancements.length > 0 ? enhancements : undefined,
@@ -395,13 +413,17 @@ const buildEnhancements = ({
 const buildPricingBreakdown = ({
   nights,
   price,
+  totalPrice,
   petFriendly,
   parkingNeeded,
+  addOnFees,
 }: {
   nights: number;
   price: ScoredCandidate["price"];
+  totalPrice: number;
   petFriendly: boolean;
   parkingNeeded: boolean;
+  addOnFees: ReturnType<typeof computeSelectedAddOnFees>;
 }) => {
   const safeNights = Math.max(1, nights);
   const preTaxSubtotal =
@@ -416,8 +438,21 @@ const buildPricingBreakdown = ({
   const parkingFeePerNight = parkingNeeded ? (price.includedFees?.parkingFeePerNight ?? 0) : 0;
   const petFeeTotal = petFeePerNight !== null ? round2(petFeePerNight * safeNights) : null;
   const parkingFeeTotal = parkingFeePerNight !== null ? round2(parkingFeePerNight * safeNights) : null;
+  const breakfastFeePerPersonPerNight = addOnFees.breakfastFeePerPersonPerNight;
+  const breakfastFeeTotal = addOnFees.breakfastFeeTotal;
+  const earlyCheckInFeePerStay = addOnFees.earlyCheckInFeePerStay;
+  const earlyCheckInFeeTotal = addOnFees.earlyCheckInFeeTotal;
+  const lateCheckOutFeePerStay = addOnFees.lateCheckOutFeePerStay;
+  const lateCheckOutFeeTotal = addOnFees.lateCheckOutFeeTotal;
+  const addOnFeesTotal = addOnFees.total;
 
-  const totals = [petFeeTotal, parkingFeeTotal].filter((value): value is number => typeof value === "number");
+  const totals = [
+    petFeeTotal,
+    parkingFeeTotal,
+    breakfastFeeTotal,
+    earlyCheckInFeeTotal,
+    lateCheckOutFeeTotal,
+  ].filter((value): value is number => typeof value === "number");
   const totalIncludedFees = totals.length > 0 ? round2(totals.reduce((sum, value) => sum + value, 0)) : null;
   const baseRateSubtotal = preTaxSubtotal !== null ? round2(Math.max(0, preTaxSubtotal)) : null;
   const explicitTaxes =
@@ -426,7 +461,7 @@ const buildPricingBreakdown = ({
     explicitTaxes !== null
       ? explicitTaxes
       : baseRateSubtotal !== null && (price.basis === "afterTax" || price.basis === "beforeTaxPlusTaxes")
-        ? round2(Math.max(0, price.amount - baseRateSubtotal - (totalIncludedFees ?? 0)))
+        ? round2(Math.max(0, totalPrice - baseRateSubtotal - (totalIncludedFees ?? 0)))
         : price.basis === "beforeTax"
           ? 0
           : null;
@@ -435,11 +470,11 @@ const buildPricingBreakdown = ({
     baseRateSubtotal !== null && taxesAndFees !== null ? round2(baseRateSubtotal + taxesAndFees + (totalIncludedFees ?? 0)) : null;
   const shouldUseResidualTaxes =
     totalFromParts !== null &&
-    round2(Math.abs(totalFromParts - round2(price.amount))) > 0.01 &&
+    round2(Math.abs(totalFromParts - totalPrice)) > 0.01 &&
     baseRateSubtotal !== null &&
     (price.basis === "afterTax" || price.basis === "beforeTaxPlusTaxes");
   const normalizedTaxesAndFees = shouldUseResidualTaxes
-    ? round2(Math.max(0, round2(price.amount) - baseRateSubtotal - (totalIncludedFees ?? 0)))
+    ? round2(Math.max(0, totalPrice - baseRateSubtotal - (totalIncludedFees ?? 0)))
     : taxesAndFees;
 
   return {
@@ -451,8 +486,60 @@ const buildPricingBreakdown = ({
       parkingFeePerNight,
       petFeeTotal,
       parkingFeeTotal,
+      breakfastFeePerPersonPerNight,
+      breakfastFeeTotal,
+      earlyCheckInFeePerStay,
+      earlyCheckInFeeTotal,
+      lateCheckOutFeePerStay,
+      lateCheckOutFeeTotal,
+      addOnFeesTotal,
       totalIncludedFees,
     },
+  };
+};
+
+const computeSelectedAddOnFees = ({
+  nights,
+  rooms,
+  totalGuests,
+  breakfastPackage,
+  earlyCheckIn,
+  lateCheckOut,
+}: {
+  nights: number;
+  rooms: number;
+  totalGuests: number;
+  breakfastPackage: boolean;
+  earlyCheckIn: boolean;
+  lateCheckOut: boolean;
+}) => {
+  const safeNights = Math.max(1, nights);
+  const safeRooms = Math.max(1, rooms);
+  const guestsPerRoom = safeRooms > 0 ? totalGuests / safeRooms : totalGuests;
+  const safeGuestsPerRoom = Math.max(1, guestsPerRoom);
+
+  const breakfastFeePerPersonPerNight = breakfastPackage ? 18 : null;
+  const breakfastFeeTotal =
+    breakfastFeePerPersonPerNight !== null
+      ? round2(breakfastFeePerPersonPerNight * safeGuestsPerRoom * safeRooms * safeNights)
+      : null;
+  const earlyCheckInFeePerStay = earlyCheckIn ? 35 : null;
+  const earlyCheckInFeeTotal = earlyCheckInFeePerStay !== null ? earlyCheckInFeePerStay : null;
+  const lateCheckOutFeePerStay = lateCheckOut ? 35 : null;
+  const lateCheckOutFeeTotal = lateCheckOutFeePerStay !== null ? lateCheckOutFeePerStay : null;
+
+  const total = round2(
+    (breakfastFeeTotal ?? 0) + (earlyCheckInFeeTotal ?? 0) + (lateCheckOutFeeTotal ?? 0),
+  );
+
+  return {
+    breakfastFeePerPersonPerNight,
+    breakfastFeeTotal,
+    earlyCheckInFeePerStay,
+    earlyCheckInFeeTotal,
+    lateCheckOutFeePerStay,
+    lateCheckOutFeeTotal,
+    total,
   };
 };
 

@@ -37,6 +37,13 @@ export type CommerceOffer = {
             parkingFeePerNight: number | null;
             petFeeTotal: number | null;
             parkingFeeTotal: number | null;
+            breakfastFeePerPersonPerNight: number | null;
+            breakfastFeeTotal: number | null;
+            earlyCheckInFeePerStay: number | null;
+            earlyCheckInFeeTotal: number | null;
+            lateCheckOutFeePerStay: number | null;
+            lateCheckOutFeeTotal: number | null;
+            addOnFeesTotal: number | null;
             totalIncludedFees: number | null;
           };
         };
@@ -53,6 +60,13 @@ export type CommerceOffer = {
             parkingFeePerNight: number | null;
             petFeeTotal: number | null;
             parkingFeeTotal: number | null;
+            breakfastFeePerPersonPerNight: number | null;
+            breakfastFeeTotal: number | null;
+            earlyCheckInFeePerStay: number | null;
+            earlyCheckInFeeTotal: number | null;
+            lateCheckOutFeePerStay: number | null;
+            lateCheckOutFeeTotal: number | null;
+            addOnFeesTotal: number | null;
             totalIncludedFees: number | null;
           };
         };

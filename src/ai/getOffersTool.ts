@@ -31,6 +31,8 @@ export type OfferOption = {
     subtotal: number;
     taxes_and_fees: number;
     total: number;
+    add_ons_total?: number;
+    total_with_add_ons?: number;
   };
   commerce_metadata?: {
     priceBasisUsed: PriceBasisUsed;
@@ -231,8 +233,9 @@ export const buildSlotSpeech = (slots: OfferIntent, offers: OfferOption[]): stri
       offer.rate_type === "non_refundable"
         ? "It's a bit cheaper if you're set on your dates."
         : "It's a little more flexible if plans might change.";
+    const spokenTotal = offer.price.total_with_add_ons ?? offer.price.total;
     lines.push(
-      `${offerPrefix}: ${offer.name}. ${offer.description} ${offer.cancellation_policy} ${offer.payment_policy} ${savingsNote} Total ${formatMoney(offer.price.total)} for ${nights} night${nights === 1 ? "" : "s"} and ${rooms} room${rooms === 1 ? "" : "s"}.`,
+      `${offerPrefix}: ${offer.name}. ${offer.description} ${offer.cancellation_policy} ${offer.payment_policy} ${savingsNote} Total ${formatMoney(spokenTotal)} for ${nights} night${nights === 1 ? "" : "s"} and ${rooms} room${rooms === 1 ? "" : "s"}.`,
     );
   }
 
