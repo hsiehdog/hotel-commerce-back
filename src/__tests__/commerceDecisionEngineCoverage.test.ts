@@ -365,6 +365,34 @@ describe("commerce decision engine coverage", () => {
     expect(parkingEnhancement).toBeTruthy();
   });
 
+  it("adds breakfast, early check-in, and late check-out enhancements when requested", async () => {
+    const req = {
+      body: {
+        property_id: "demo_property",
+        channel: "voice",
+        check_in: "2026-04-10",
+        check_out: "2026-04-12",
+        rooms: 1,
+        adults: 2,
+        breakfast_package: true,
+        early_check_in: true,
+        late_check_out: true,
+        debug: true,
+      },
+    } as Parameters<typeof generateOffersForChannel>[0];
+    const res = createResponse();
+    const next = vi.fn();
+
+    await generateOffersForChannel(req, res, next as Parameters<typeof generateOffersForChannel>[2]);
+    expect(next).not.toHaveBeenCalled();
+
+    const payload = (res as unknown as { json: ReturnType<typeof vi.fn> }).json.mock.calls[0]?.[0] as OfferResponsePayload;
+    const enhancementIds = (payload.data.offers[0]?.enhancements ?? []).map((item) => item.id);
+    expect(enhancementIds).toContain("addon_breakfast");
+    expect(enhancementIds).toContain("addon_early_check_in");
+    expect(enhancementIds).toContain("addon_late_check_out");
+  });
+
   it("adds pricing breakdown for included pet and parking fees", async () => {
     const req = {
       body: {

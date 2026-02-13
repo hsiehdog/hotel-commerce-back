@@ -33,6 +33,9 @@ export type OfferGenerateRequestV1 = {
   accessible_room?: boolean;
   needs_two_beds?: boolean;
   parking_needed?: boolean;
+  breakfast_package?: boolean;
+  early_check_in?: boolean;
+  late_check_out?: boolean;
   stub_scenario?: string;
   debug?: boolean;
 };
@@ -58,6 +61,9 @@ export type NormalizedOfferRequest = {
   accessibleRoom?: boolean;
   needsTwoBeds?: boolean;
   parkingNeeded?: boolean;
+  breakfastPackage?: boolean;
+  earlyCheckIn?: boolean;
+  lateCheckOut?: boolean;
   stubScenario?: string;
   configVersion: number;
   debug: boolean;

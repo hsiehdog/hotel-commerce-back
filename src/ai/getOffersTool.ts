@@ -192,6 +192,9 @@ const mergeIntent = (current: OfferIntent, incoming: GetOffersToolArgs): OfferIn
   accessible_room: typeof incoming.accessible_room === "boolean" ? incoming.accessible_room : current.accessible_room,
   needs_two_beds: typeof incoming.needs_two_beds === "boolean" ? incoming.needs_two_beds : current.needs_two_beds,
   parking_needed: typeof incoming.parking_needed === "boolean" ? incoming.parking_needed : current.parking_needed,
+  breakfast_package: typeof incoming.breakfast_package === "boolean" ? incoming.breakfast_package : current.breakfast_package,
+  early_check_in: typeof incoming.early_check_in === "boolean" ? incoming.early_check_in : current.early_check_in,
+  late_check_out: typeof incoming.late_check_out === "boolean" ? incoming.late_check_out : current.late_check_out,
   stub_scenario: typeof incoming.stub_scenario === "string" ? incoming.stub_scenario : current.stub_scenario,
 });
 
@@ -216,6 +219,9 @@ export const buildSlotSpeech = (slots: OfferIntent, offers: OfferOption[]): stri
     `accessible_room: ${slots.accessible_room ?? "null"}`,
     `needs_two_beds: ${slots.needs_two_beds ?? "null"}`,
     `parking_needed: ${slots.parking_needed ?? "null"}`,
+    `breakfast_package: ${slots.breakfast_package ?? "null"}`,
+    `early_check_in: ${slots.early_check_in ?? "null"}`,
+    `late_check_out: ${slots.late_check_out ?? "null"}`,
     offers.length > 1 ? "Here are two options:" : "Here is the best available option:",
   ];
 
@@ -290,6 +296,15 @@ const buildConfirmationPrompt = (slots: OfferIntent): string => {
   }
   if (slots.parking_needed !== null) {
     preferencePhrases.push(`parking needed ${slots.parking_needed ? "yes" : "no"}`);
+  }
+  if (slots.breakfast_package !== null) {
+    preferencePhrases.push(`breakfast package ${slots.breakfast_package ? "yes" : "no"}`);
+  }
+  if (slots.early_check_in !== null) {
+    preferencePhrases.push(`early check-in ${slots.early_check_in ? "yes" : "no"}`);
+  }
+  if (slots.late_check_out !== null) {
+    preferencePhrases.push(`late check-out ${slots.late_check_out ? "yes" : "no"}`);
   }
 
   const lines = [

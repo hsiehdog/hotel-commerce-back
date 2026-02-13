@@ -25,6 +25,9 @@ describe("getOffersTool confirmation prompt", () => {
     expect(result.clarificationPrompt).not.toContain("accessible room");
     expect(result.clarificationPrompt).not.toContain("two beds");
     expect(result.clarificationPrompt).not.toContain("parking needed");
+    expect(result.clarificationPrompt).not.toContain("breakfast package");
+    expect(result.clarificationPrompt).not.toContain("early check-in");
+    expect(result.clarificationPrompt).not.toContain("late check-out");
   });
 
   it("includes optional preferences only when user provided them", () => {
@@ -46,6 +49,30 @@ describe("getOffersTool confirmation prompt", () => {
     expect(result.clarificationPrompt).toContain("parking needed no");
     expect(result.clarificationPrompt).not.toContain("accessible room");
     expect(result.clarificationPrompt).not.toContain("two beds");
+    expect(result.clarificationPrompt).not.toContain("breakfast package");
+    expect(result.clarificationPrompt).not.toContain("early check-in");
+    expect(result.clarificationPrompt).not.toContain("late check-out");
     expect(result.clarificationPrompt).toContain("Is this correct?");
+  });
+
+  it("includes add-on preferences when explicitly provided", () => {
+    const result = resolveOfferSlots(createEmptyOfferIntent(), {
+      check_in: "2026-02-20",
+      check_out: "2026-02-22",
+      adults: 2,
+      rooms: 1,
+      breakfast_package: true,
+      early_check_in: true,
+      late_check_out: false,
+    });
+
+    expect(result.status).toBe("NEEDS_CLARIFICATION");
+    if (result.status !== "NEEDS_CLARIFICATION") {
+      return;
+    }
+
+    expect(result.clarificationPrompt).toContain("breakfast package yes");
+    expect(result.clarificationPrompt).toContain("early check-in yes");
+    expect(result.clarificationPrompt).toContain("late check-out no");
   });
 });

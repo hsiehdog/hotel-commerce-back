@@ -97,6 +97,9 @@ export const buildCommerceOffers = async ({
         now: new Date(normalized.nowUtcIso),
         petFriendly: normalized.petFriendly,
         parkingNeeded: normalized.parkingNeeded,
+        breakfastPackage: normalized.breakfastPackage,
+        earlyCheckIn: normalized.earlyCheckIn,
+        lateCheckOut: normalized.lateCheckOut,
         propertyContext,
       }),
     );
@@ -134,6 +137,9 @@ export const buildCommerceOffers = async ({
               accessibleRoom: normalized.accessibleRoom,
               needsTwoBeds: normalized.needsTwoBeds,
               parkingNeeded: normalized.parkingNeeded,
+              breakfastPackage: normalized.breakfastPackage,
+              earlyCheckIn: normalized.earlyCheckIn,
+              lateCheckOut: normalized.lateCheckOut,
             },
             profilePreAri: {
               tripType: normalized.profile.tripType,
@@ -209,6 +215,9 @@ const toCommerceOffer = ({
   now,
   petFriendly,
   parkingNeeded,
+  breakfastPackage,
+  earlyCheckIn,
+  lateCheckOut,
   propertyContext,
 }: {
   candidate: ScoredCandidate;
@@ -218,6 +227,9 @@ const toCommerceOffer = ({
   now: Date;
   petFriendly?: boolean;
   parkingNeeded?: boolean;
+  breakfastPackage?: boolean;
+  earlyCheckIn?: boolean;
+  lateCheckOut?: boolean;
   propertyContext: PropertyContext | null;
 }): CommerceOffer => {
   const isSaver = candidate.archetype === "SAVER";
@@ -227,6 +239,9 @@ const toCommerceOffer = ({
     currency: candidate.currency,
     petFriendly: petFriendly ?? false,
     parkingNeeded: parkingNeeded ?? false,
+    breakfastPackage: breakfastPackage ?? false,
+    earlyCheckIn: earlyCheckIn ?? false,
+    lateCheckOut: lateCheckOut ?? false,
     includedFees: candidate.price.includedFees,
     stayPolicy: propertyContext?.stayPolicy,
   });
@@ -292,6 +307,9 @@ const buildEnhancements = ({
   currency,
   petFriendly,
   parkingNeeded,
+  breakfastPackage,
+  earlyCheckIn,
+  lateCheckOut,
   includedFees,
   stayPolicy,
 }: {
@@ -299,17 +317,23 @@ const buildEnhancements = ({
   currency: string;
   petFriendly: boolean;
   parkingNeeded: boolean;
+  breakfastPackage: boolean;
+  earlyCheckIn: boolean;
+  lateCheckOut: boolean;
   includedFees?: ScoredCandidate["price"]["includedFees"];
   stayPolicy?: PropertyContext["stayPolicy"];
 }) => {
   const enhancements: CommerceOffer["enhancements"] = [];
-  if (tripType === "family") {
+  if (tripType === "family" || breakfastPackage) {
     enhancements.push({
       id: "addon_breakfast",
       name: "Breakfast",
       price: { type: "perPersonPerNight", amount: 18, currency },
       availability: "info",
-      whyShown: "family_fit",
+      whyShown: breakfastPackage ? "preference_breakfast" : "family_fit",
+      disclosure: breakfastPackage
+        ? "Breakfast package request noted; exact inclusions confirmed at booking."
+        : undefined,
     });
   }
 
@@ -342,7 +366,29 @@ const buildEnhancements = ({
     });
   }
 
-  return enhancements.slice(0, 3);
+  if (earlyCheckIn) {
+    enhancements.push({
+      id: "addon_early_check_in",
+      name: "Early check-in",
+      price: { type: "perStay", amount: 35, currency },
+      availability: "info",
+      whyShown: "preference_early_check_in",
+      disclosure: "Early check-in request noted; subject to availability on arrival day.",
+    });
+  }
+
+  if (lateCheckOut) {
+    enhancements.push({
+      id: "addon_late_check_out",
+      name: "Late check-out",
+      price: { type: "perStay", amount: 35, currency },
+      availability: "info",
+      whyShown: "preference_late_check_out",
+      disclosure: "Late check-out request noted; subject to availability on departure day.",
+    });
+  }
+
+  return enhancements;
 };
 
 const buildPricingBreakdown = ({

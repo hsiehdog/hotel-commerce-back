@@ -48,6 +48,9 @@ export type OfferSlots = {
   accessible_room: boolean;
   needs_two_beds: boolean;
   parking_needed: boolean;
+  breakfast_package: boolean;
+  early_check_in: boolean;
+  late_check_out: boolean;
   stub_scenario: string;
 };
 
@@ -64,6 +67,9 @@ export const offerSlotsInputSchema = z.object({
   accessible_room: z.boolean().optional(),
   needs_two_beds: z.boolean().optional(),
   parking_needed: z.boolean().optional(),
+  breakfast_package: z.boolean().optional(),
+  early_check_in: z.boolean().optional(),
+  late_check_out: z.boolean().optional(),
   stub_scenario: z.string().optional(),
 });
 
@@ -78,6 +84,9 @@ export const offerIntentPatchSchema = z.object({
   accessible_room: z.boolean().nullable().optional(),
   needs_two_beds: z.boolean().nullable().optional(),
   parking_needed: z.boolean().nullable().optional(),
+  breakfast_package: z.boolean().nullable().optional(),
+  early_check_in: z.boolean().nullable().optional(),
+  late_check_out: z.boolean().nullable().optional(),
   stub_scenario: z.string().nullable().optional(),
   language: z.string().nullable().optional(),
   property_timezone: z.string().optional(),
@@ -104,6 +113,9 @@ export const coerceOfferSlotsInput = (raw: unknown): OfferSlotsInput => {
     accessible_room: parseBoolean(args.accessible_room),
     needs_two_beds: parseBoolean(args.needs_two_beds),
     parking_needed: parseBoolean(args.parking_needed),
+    breakfast_package: parseBoolean(args.breakfast_package),
+    early_check_in: parseBoolean(args.early_check_in),
+    late_check_out: parseBoolean(args.late_check_out),
     stub_scenario: parseString(args.stub_scenario),
   };
 };

@@ -96,6 +96,9 @@ export type CommerceOfferResponse = {
       accessibleRoom?: boolean;
       needsTwoBeds?: boolean;
       parkingNeeded?: boolean;
+      breakfastPackage?: boolean;
+      earlyCheckIn?: boolean;
+      lateCheckOut?: boolean;
     };
     profilePreAri: {
       tripType: string;
