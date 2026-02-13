@@ -393,6 +393,34 @@ describe("commerce decision engine coverage", () => {
     expect(enhancementIds).toContain("addon_late_check_out");
   });
 
+  it("does not add breakfast enhancement when breakfast package is explicitly false", async () => {
+    const req = {
+      body: {
+        property_id: "demo_property",
+        channel: "web",
+        check_in: "2026-06-10",
+        check_out: "2026-06-13",
+        rooms: 1,
+        adults: 2,
+        children: 2,
+        child_ages: [7, 10],
+        breakfast_package: false,
+        late_check_out: true,
+        debug: true,
+      },
+    } as Parameters<typeof generateOffersForChannel>[0];
+    const res = createResponse();
+    const next = vi.fn();
+
+    await generateOffersForChannel(req, res, next as Parameters<typeof generateOffersForChannel>[2]);
+    expect(next).not.toHaveBeenCalled();
+
+    const payload = (res as unknown as { json: ReturnType<typeof vi.fn> }).json.mock.calls[0]?.[0] as OfferResponsePayload;
+    const enhancementIds = (payload.data.offers[0]?.enhancements ?? []).map((item) => item.id);
+    expect(enhancementIds).not.toContain("addon_breakfast");
+    expect(enhancementIds).toContain("addon_late_check_out");
+  });
+
   it("adds pricing breakdown for included pet and parking fees", async () => {
     const req = {
       body: {

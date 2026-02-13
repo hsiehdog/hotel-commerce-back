@@ -239,7 +239,7 @@ const toCommerceOffer = ({
     currency: candidate.currency,
     petFriendly: petFriendly ?? false,
     parkingNeeded: parkingNeeded ?? false,
-    breakfastPackage: breakfastPackage ?? false,
+    breakfastPackage,
     earlyCheckIn: earlyCheckIn ?? false,
     lateCheckOut: lateCheckOut ?? false,
     includedFees: candidate.price.includedFees,
@@ -317,14 +317,15 @@ const buildEnhancements = ({
   currency: string;
   petFriendly: boolean;
   parkingNeeded: boolean;
-  breakfastPackage: boolean;
+  breakfastPackage?: boolean;
   earlyCheckIn: boolean;
   lateCheckOut: boolean;
   includedFees?: ScoredCandidate["price"]["includedFees"];
   stayPolicy?: PropertyContext["stayPolicy"];
 }) => {
   const enhancements: CommerceOffer["enhancements"] = [];
-  if (tripType === "family" || breakfastPackage) {
+  const shouldShowBreakfast = breakfastPackage === true || (tripType === "family" && breakfastPackage !== false);
+  if (shouldShowBreakfast) {
     enhancements.push({
       id: "addon_breakfast",
       name: "Breakfast",
