@@ -142,6 +142,13 @@ When implementing a change, always output:
 
 Prefer small PR-sized changes over massive rewrites.
 
+## Commit workflow
+
+- When the user says `"commit"`, it means:
+  1. Run `git diff`.
+  2. Construct an appropriate commit message based on the changed files.
+  3. Commit the changes using that message.
+
 ## Required checks
 
 After any code change, run:
