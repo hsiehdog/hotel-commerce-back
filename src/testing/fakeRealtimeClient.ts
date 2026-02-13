@@ -9,6 +9,7 @@ export type FakeRealtimeController = {
   assistantMessages: string[];
   inputAudio: string[];
   isClosed: boolean;
+  instructions: string | null;
 };
 
 export const createFakeRealtimeClientFactory = (): {
@@ -22,6 +23,7 @@ export const createFakeRealtimeClientFactory = (): {
     assistantMessages: [],
     inputAudio: [],
     isClosed: false,
+    instructions: null,
     emitFunctionCall: async (name, args, callId = "call_fake") => {
       await options?.onFunctionCall?.({ name, callId, arguments: args });
     },
@@ -32,6 +34,7 @@ export const createFakeRealtimeClientFactory = (): {
 
   const factory = (nextOptions: RealtimeClientOptions): RealtimeClient => {
     options = nextOptions;
+    controller.instructions = nextOptions.instructions;
 
     return {
       sendAudio: (audio) => {

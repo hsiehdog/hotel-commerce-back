@@ -256,13 +256,6 @@ const formatMoney = (amount: number): string => {
   const centLabel = cents === 1 ? "cent" : "cents";
   return `${dollars} dollars and ${cents} ${centLabel}`;
 };
-const formatOptionalFlag = (value: boolean | null): string => {
-  if (value === null) {
-    return "not mentioned";
-  }
-  return value ? "yes" : "no";
-};
-
 const round2 = (value: number): number => Math.round(value * 100) / 100;
 
 const hasSlotUpdates = (current: OfferIntent, incoming: GetOffersToolArgs): boolean => {
@@ -285,19 +278,33 @@ const buildConfirmationPrompt = (slots: OfferIntent): string => {
   const spokenCheckOut = slots.check_out
     ? formatDateForSpeech(slots.check_out, slots.property_timezone)
     : "not provided";
+  const preferencePhrases: string[] = [];
+  if (slots.pet_friendly !== null) {
+    preferencePhrases.push(`pet-friendly ${slots.pet_friendly ? "yes" : "no"}`);
+  }
+  if (slots.accessible_room !== null) {
+    preferencePhrases.push(`accessible room ${slots.accessible_room ? "yes" : "no"}`);
+  }
+  if (slots.needs_two_beds !== null) {
+    preferencePhrases.push(`two beds ${slots.needs_two_beds ? "yes" : "no"}`);
+  }
+  if (slots.parking_needed !== null) {
+    preferencePhrases.push(`parking needed ${slots.parking_needed ? "yes" : "no"}`);
+  }
+
   const lines = [
     "Just to confirm, here are the details I have:",
     `check-in ${spokenCheckIn}, check-out ${spokenCheckOut},`,
     `nights ${slots.nights ?? "not provided"},`,
     `adults ${slots.adults ?? "not provided"},`,
     `rooms ${slots.rooms ?? "not provided"},`,
-    `children ${slots.children ?? 0},`,
-    `pet-friendly ${formatOptionalFlag(slots.pet_friendly)},`,
-    `accessible room ${formatOptionalFlag(slots.accessible_room)},`,
-    `two beds ${formatOptionalFlag(slots.needs_two_beds)},`,
-    `parking needed ${formatOptionalFlag(slots.parking_needed)}.`,
-    "Is that all correct?",
+    `children ${slots.children ?? 0}${preferencePhrases.length > 0 ? "," : "."}`,
   ];
+
+  if (preferencePhrases.length > 0) {
+    lines.push(`${preferencePhrases.join(", ")}.`);
+  }
+  lines.push("Is this correct?");
 
   return lines.join(" ");
 };

@@ -22,8 +22,9 @@ export const normalizeDate = (
     return { status: "ok", value };
   }
 
-  if (isWeekendPhrase(value)) {
-    return { status: "ambiguous", prompt: "Do you mean Friday to Sunday, or Saturday to Monday?" };
+  const weekend = resolveWeekendDate(value, now, timezone, field);
+  if (weekend) {
+    return { status: "ok", value: weekend };
   }
 
   const relative = resolveRelativeDate(value, now, timezone);
@@ -140,6 +141,23 @@ const isMonthlessDate = (value: string): boolean => /\bthe\s+\d{1,2}(st|nd|rd|th
 const isWeekendPhrase = (value: string): boolean => {
   const normalized = value.trim().toLowerCase();
   return normalized === "this weekend" || normalized === "next weekend";
+};
+
+const resolveWeekendDate = (
+  input: string,
+  now: Date,
+  timezone: string,
+  field: "check_in" | "check_out",
+): string | null => {
+  if (!isWeekendPhrase(input)) {
+    return null;
+  }
+
+  const normalized = input.trim().toLowerCase();
+  const mode = normalized === "next weekend" ? "next" : "this";
+  const today = getTodayInTimezone(now, timezone);
+  const weekday = field === "check_in" ? "friday" : "sunday";
+  return resolveWeekday(today, weekday, mode);
 };
 
 const buildMonthOptions = (now: Date, timezone: string, value: string): { optionA: string; optionB: string } => {

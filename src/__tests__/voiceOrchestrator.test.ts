@@ -107,7 +107,7 @@ describe("voice orchestrator tool gating", () => {
     expect(output?.clarificationPrompt).toMatch(/check-out/i);
   });
 
-  it("asks for weekend range clarification", async () => {
+  it("normalizes weekend phrases and asks only the standard recap confirmation", async () => {
     const { controller } = setup();
 
     await controller.emitFunctionCall("get_offers", {
@@ -119,8 +119,10 @@ describe("voice orchestrator tool gating", () => {
 
     const output = lastToolOutput(controller);
     expect(output?.status).toBe("NEEDS_CLARIFICATION");
-    expect(output?.clarificationPrompt).toMatch(/friday to sunday/i);
-    expect(output?.clarificationPrompt).toMatch(/saturday to monday/i);
+    expect(output?.clarificationPrompt).toMatch(/Just to confirm/i);
+    expect(output?.clarificationPrompt).toMatch(/Is this correct\?/i);
+    expect(output?.clarificationPrompt).not.toMatch(/friday to sunday/i);
+    expect(output?.clarificationPrompt).not.toMatch(/saturday to monday/i);
   });
 
   it("handles happy-path get_offers tool call", async () => {
@@ -155,5 +157,13 @@ describe("voice orchestrator tool gating", () => {
     expect(controller.sentFunctionOutputs).toHaveLength(2);
     expect(controller.responseCreateCount).toBe(2);
     expect(lastToolOutput(controller)?.status).toBe("OK");
+  });
+
+  it("injects trusted day/date context into realtime instructions", () => {
+    vi.setSystemTime(new Date("2026-02-13T20:00:00Z"));
+    const { controller } = setup();
+    expect(controller.instructions).toContain("Friday, February 13, 2026");
+    expect(controller.instructions).toContain("Do not state a different current day/date");
+    expect(controller.instructions).toContain("Never resolve relative dates yourself");
   });
 });

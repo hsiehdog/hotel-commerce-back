@@ -1,7 +1,7 @@
 import { dispatchToolCall } from "../ai/toolRouter";
 import { createOpenAiRealtimeClient } from "../integrations/openaiRealtimeClient";
 import type { RealtimeClient, RealtimeClientOptions } from "../integrations/openaiRealtimeClient";
-import twilioOffersPrompt from "../prompts/system/twilioOffersPrompt";
+import { buildTwilioOffersPrompt } from "../prompts/system/twilioOffersPrompt";
 import { getSession } from "./twilioMediaStreamService";
 import { logger } from "../utils/logger";
 import type { TwilioStreamAction } from "./twilioMediaStreamService";
@@ -24,9 +24,11 @@ export const createVoiceOrchestrator = ({
   realtimeFactory,
 }: OrchestratorOptions) => {
   const state: OrchestratorState = { greeted: false };
+  const propertyTimezone = "America/Los_Angeles";
+  const realtimeInstructions = buildTwilioOffersPrompt(new Date(), propertyTimezone);
 
   const realtime = (realtimeFactory ?? createOpenAiRealtimeClient)({
-    instructions: twilioOffersPrompt,
+    instructions: realtimeInstructions,
     tools: [
       {
         name: "get_offers",
